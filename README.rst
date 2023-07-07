@@ -45,8 +45,10 @@ Features
 - |check| Replay trades against DEX
 - |check| Display simulation metrics
 
+
 .. figure:: terra_backtest_algo.png
    :scale: 60 %
+
 
 Quick Start
 -----------
