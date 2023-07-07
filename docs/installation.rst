@@ -5,24 +5,6 @@ Installation
 ============
 
 
-Stable release
---------------
-
-To install terra_algo_backtest, run this command in your terminal:
-
-.. code-block:: console
-
-    $ pip install terra_algo_backtest
-
-This is the preferred method to install terra_algo_backtest, as it will always install the most recent stable release.
-
-If you don't have `pip`_ installed, this `Python installation guide`_ can guide
-you through the process.
-
-.. _pip: https://pip.pypa.io
-.. _Python installation guide: http://docs.python-guide.org/en/latest/starting/installation/
-
-
 From sources
 ------------
 
@@ -44,7 +26,24 @@ Once you have a copy of the source, you can install it with:
 
 .. code-block:: console
 
-    $ python setup.py install
+    $ pip install -r requirements_dev.txt
+    $ make dist install
+
 
 .. _Github repo: https://github.com/terra-revival/terra_algo_backtest
 .. _tarball: https://github.com/terra-revival/terra_algo_backtest/tarball/master
+
+Install Jupyter Notebook:
+
+.. code-block:: console
+
+    $ pip install notebook
+    # for virtual envs only
+    $ python -m ipykernel install --user --name=my_virtual_env
+
+Check out the examples:
+
+.. code-block:: console
+
+    $ cd ./docs/examples
+    $ jupyter notebook

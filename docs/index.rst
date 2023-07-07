@@ -1,5 +1,5 @@
-Welcome to terra_algo_backtest's documentation!
-======================================
+Welcome to Terra Algo Backtest's documentation!
+===============================================
 
 .. toctree::
    :maxdepth: 2
@@ -10,6 +10,7 @@ Welcome to terra_algo_backtest's documentation!
    usage
    examples/uniswap_v2.ipynb
    examples/terra_market_module.ipynb
+   examples/backtesting_lunc_ustc.ipynb
    modules
    contributing
    authors

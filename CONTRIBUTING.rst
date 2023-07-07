@@ -111,7 +111,7 @@ Tips
 
 To run a subset of tests::
 
-$ pytest tests.test_cpy_amm
+$ pytest tests.test_terra_algo_backtest
 
 
 Deploying

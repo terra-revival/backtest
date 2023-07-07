@@ -5,7 +5,7 @@ Credits
 Development Lead
 ----------------
 
-* Lehajam Boujemaoui <cpyamm.lib@gmail.com>
+* USTC Quant Team
 
 Contributors
 ------------
