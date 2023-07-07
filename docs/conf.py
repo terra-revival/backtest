@@ -51,8 +51,7 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = "terra_algo_backtest"
-copyright = "2023, USTC Quant Team"
+project = "Terra Algo Backtest"
 author = "USTC Quant Team"
 
 # The version info for the project you're documenting, acts as replacement
