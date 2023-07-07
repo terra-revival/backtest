@@ -1,61 +1,69 @@
 terra\_algo\_backtest package
-================
+=============================
 
 Submodules
 ----------
 
 terra\_algo\_backtest.binance\_loader module
--------------------------------
+--------------------------------------------
 
-.. automodule:: cpy_amm.binance_loader
+.. automodule:: terra_algo_backtest.binance_loader
    :members:
    :undoc-members:
    :show-inheritance:
 
 terra\_algo\_backtest.gbm\_histo module
---------------------------
+---------------------------------------
 
-.. automodule:: cpy_amm.gbm_histo
+.. automodule:: terra_algo_backtest.gbm_histo
    :members:
    :undoc-members:
    :show-inheritance:
 
 terra\_algo\_backtest.market module
-----------------------
+-----------------------------------
 
-.. automodule:: cpy_amm.market
+.. automodule:: terra_algo_backtest.market
    :members:
    :undoc-members:
    :show-inheritance:
 
 terra\_algo\_backtest.plotting module
-------------------------
+-------------------------------------
 
-.. automodule:: cpy_amm.plotting
+.. automodule:: terra_algo_backtest.plotting
    :members:
    :undoc-members:
    :show-inheritance:
 
 terra\_algo\_backtest.simulation module
---------------------------
+---------------------------------------
 
-.. automodule:: cpy_amm.simulation
+.. automodule:: terra_algo_backtest.simulation
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+terra\_algo\_backtest.strategy module
+-------------------------------------
+
+.. automodule:: terra_algo_backtest.strategy
    :members:
    :undoc-members:
    :show-inheritance:
 
 terra\_algo\_backtest.swap module
---------------------
+---------------------------------
 
-.. automodule:: cpy_amm.swap
+.. automodule:: terra_algo_backtest.swap
    :members:
    :undoc-members:
    :show-inheritance:
 
 terra\_algo\_backtest.utils module
----------------------
+----------------------------------
 
-.. automodule:: cpy_amm.utils
+.. automodule:: terra_algo_backtest.utils
    :members:
    :undoc-members:
    :show-inheritance:
@@ -63,7 +71,7 @@ terra\_algo\_backtest.utils module
 Module contents
 ---------------
 
-.. automodule:: cpy_amm
+.. automodule:: terra_algo_backtest
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,7 +1,7 @@
-cpy_amm
-=======
+terra_algo_backtest
+===================
 
 .. toctree::
    :maxdepth: 4
 
-   cpy_amm
+   terra_algo_backtest

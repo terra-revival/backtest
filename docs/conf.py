@@ -48,8 +48,8 @@ master_doc = "index"
 
 # General information about the project.
 project = "terra_algo_backtest"
-copyright = "2022, Lehajam Boujemaoui"
-author = "Lehajam Boujemaoui"
+copyright = "2023, USTC Quant Team"
+author = "USTC Quant Team"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -97,11 +97,10 @@ html_theme = "sphinx_book_theme"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
-
 # -- Options for HTMLHelp output ---------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "cpy_ammdoc"
+htmlhelp_basename = "terra_algo_backtestdoc"
 
 
 # -- Options for LaTeX output ------------------------------------------
@@ -129,7 +128,7 @@ latex_documents = [
         master_doc,
         "terra_algo_backtest.tex",
         "terra_algo_backtest Documentation",
-        "Lehajam Boujemaoui",
+        "USTC Quant Team",
         "manual",
     ),
 ]
@@ -139,7 +138,15 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "terra_algo_backtest", "terra_algo_backtest Documentation", [author], 1)]
+man_pages = [
+    (
+        master_doc,
+        "terra_algo_backtest",
+        "terra_algo_backtest Documentation",
+        [author],
+        1,
+    )
+]
 
 
 # -- Options for Texinfo output ----------------------------------------

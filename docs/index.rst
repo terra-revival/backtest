@@ -1,5 +1,5 @@
-Welcome to terra_algo_backtest's documentation!
-======================================
+Welcome to Terra Algo Backtest's documentation!
+===============================================
 
 .. toctree::
    :maxdepth: 2

@@ -17,7 +17,7 @@ def get_strategy(strategy: str) -> Callable[[dict, MarketPair], List[dict]]:
     """
     if strategy == "uni_v2":
         return uni_v2
-    if strategy == "rld":
+    if strategy == "div_protocol":
         return div_protocol
     raise Exception(f"Strategy {strategy} not found")
 

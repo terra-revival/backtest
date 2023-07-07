@@ -7,7 +7,13 @@ import pandas as pd
 import pandas.api.types as ptypes
 import pytest
 
-from terra_algo_backtest.market import MarketPair, MarketQuote, Pool, TradeOrder, new_market
+from terra_algo_backtest.market import (
+    MarketPair,
+    MarketQuote,
+    Pool,
+    TradeOrder,
+    new_market,
+)
 from terra_algo_backtest.simulation import (
     create_buy_sell_orders,
     get_binance_trade_histo_for_pair,
