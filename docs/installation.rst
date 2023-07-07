@@ -27,7 +27,8 @@ Once you have a copy of the source, you can install it with:
 .. code-block:: console
 
     $ pip install -r requirements_dev.txt
-    $ python setup.py install
+    $ make dist install
+
 
 .. _Github repo: https://github.com/terra-revival/terra_algo_backtest
 .. _tarball: https://github.com/terra-revival/terra_algo_backtest/tarball/master

@@ -55,12 +55,12 @@ Quick Start
 
 **1 - Install from source**
 
-.. code-block:: bash
+.. code-block:: console
 
     $ git clone git://github.com/terra-revival/terra_algo_backtest
     $ cd ./terra_algo_backtest
     $ pip install -r requirements_dev.txt
-    $ python setup.py install
+    $ make dist install
     $ cd ./docs/examples
     $ jupyter notebook
 
