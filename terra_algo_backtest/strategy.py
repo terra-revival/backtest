@@ -1,11 +1,11 @@
 # swap_simulation function updated with additional arguments for strategy
 from typing import Callable, List
+import datetime
+from market import MarketPair, TradeOrder
+from swap import calc_arb_trade, constant_product_swap, price_impact_range
 
-from .market import MarketPair, TradeOrder
-from .swap import calc_arb_trade, constant_product_swap
 
-
-def get_strategy(strategy: str) -> Callable[[dict, MarketPair], List[dict]]:
+def get_strategy(strategy: str) -> Callable[[dict, MarketPair, dict], List[dict]]:
     """Returns the strategy functon.
 
     Args:
@@ -17,12 +17,10 @@ def get_strategy(strategy: str) -> Callable[[dict, MarketPair], List[dict]]:
     """
     if strategy == "uni_v2":
         return uni_v2
-    if strategy == "div_protocol":
-        return div_protocol
     raise Exception(f"Strategy {strategy} not found")
 
 
-def uni_v2(row: dict, mkt: MarketPair) -> List[dict]:
+def uni_v2(row: dict, mkt: MarketPair, args: dict) -> List[dict]:
     """UNI v2 LP strategy.
 
     Args:
@@ -43,7 +41,7 @@ def uni_v2(row: dict, mkt: MarketPair) -> List[dict]:
     return trade_exec_info
 
 
-def div_protocol(row: dict, mkt: MarketPair) -> List[dict]:
+def div_protocol(trade: TradeOrder, mkt: MarketPair, args: dict, dt: datetime.datetime) -> List[dict]:
     """UNI v2 LP strategy with divergence protocol.
 
     Args:
@@ -54,8 +52,24 @@ def div_protocol(row: dict, mkt: MarketPair) -> List[dict]:
         dict: trade_exec_info.
 
     """
-    trade_exec_info = uni_v2(row, mkt)
+    trade_exec_info = []
+    mid_price = mkt.mid_price
+    _, exec_price = constant_product_swap(mkt, trade)
+    executed = {
+        "trade_date": dt,
+        "side": trade.direction,
+        "arb_profit": 0,
+        "price": exec_price,
+        "price_impact": (mid_price - exec_price) / mid_price,
+        **mkt.describe(),
+    }
+
     # divergence tax if applicable
+    if (exec_price < args['soft_peg_price'] and args['soft_peg_price'] == 1) or (args['soft_peg_price'] < 1):
+        T = abs(exec_price - args['soft_peg_price']) * (1 - args['arbitrage_coef'])
+        executed['cex_profit'] = T * args['cex_tax_coef'] * trade.order_size
+        executed['chain_profit'] = T * (1 - args['cex_tax_coef']) * trade.order_size
+    trade_exec_info.append(executed)
     return trade_exec_info
 
 

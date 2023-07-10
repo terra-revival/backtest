@@ -3,9 +3,10 @@ from typing import Callable, List
 
 import numpy as np
 import pandas as pd
-
-from .market import MarketPair, with_mkt_price
-from .utils import timer_func
+from datetime import datetime, timedelta
+from market import MarketPair, with_mkt_price, TradeOrder
+from utils import timer_func
+from swap import price_impact_range
 
 
 def resample_df(df: pd.DataFrame, resample_freq: str) -> pd.DataFrame:
@@ -37,19 +38,49 @@ def resample_df(df: pd.DataFrame, resample_freq: str) -> pd.DataFrame:
 def swap_simulation(
     mkt: MarketPair,
     trade_df: pd.DataFrame,
-    strategy: Callable[[dict, MarketPair], List[dict]],
+    strategy: Callable[[dict, MarketPair, dict], List[dict]],
+    args: dict
 ) -> dict:
     gc.disable()
     trade_exec_info = []
     trades = trade_df.reset_index().to_dict(orient="records")
     for row in trades:
         mkt = with_mkt_price(mkt, row["price"])
-        trade_exec_info.extend(strategy(row, mkt))
+        trade_exec_info.extend(strategy(row, mkt, args))
     gc.enable()
     return sim_results(trade_exec_info)
 
 
 @timer_func
+def peg_simulation(
+    mkt: MarketPair,
+    function: List[float],
+    strategy: Callable[[TradeOrder, MarketPair, dict, datetime], List[dict]],
+    args: dict
+) -> dict:
+    gc.disable()
+    trade_exec_info = []
+    for idx in range(0, len(function) - 2):
+        rel_gain = (function[idx + 1] - function[idx]) / function[idx]
+        mkt = with_mkt_price(mkt, mkt.mkt_price * (1 + rel_gain))
+        dx, dy = mkt.get_delta_reserves()
+        if dy == 0 or dx == 0:
+            continue
+        trade = {}
+        if dx > 0:
+            trade = TradeOrder(mkt.ticker, dx, mkt.swap_fee)
+        else:
+            trade = TradeOrder(mkt.ticker, dy, mkt.swap_fee)
+
+        trades = strategy(trade, mkt, args,
+                          args['start_date'] + timedelta(seconds=args['timeframe']*idx))
+        trade_exec_info.extend(trades)
+
+    gc.enable()
+    return sim_results(trade_exec_info)
+
+
+@ timer_func
 def sim_results(sim_outputs: list) -> dict:
     """Processes simulation outputs to provide a structured result.
 
@@ -72,6 +103,10 @@ def sim_results(sim_outputs: list) -> dict:
     df_sim["trade_pnl_pct"] = df_sim["trade_pnl"] / df_sim["hold_portfolio"]
     df_sim["fees_pnl_pct"] = df_sim["total_fees_paid_quote"] / df_sim["hold_portfolio"]
     df_sim["total_arb_profit"] = df_sim["arb_profit"].cumsum()
+    if 'cex_profit' in df_sim:
+        df_sim["total_cex_profit"] = df_sim["cex_profit"].cumsum()
+    if 'chain_profit' in df_sim:
+        df_sim["total_chain_profit"] = df_sim["chain_profit"].cumsum()
 
     return {
         "headline": trade_summary(df_sim),
@@ -79,7 +114,7 @@ def sim_results(sim_outputs: list) -> dict:
     }
 
 
-@timer_func
+@ timer_func
 def trade_summary(df_trades: pd.DataFrame) -> pd.DataFrame:
     """Generates a summary of trades.
 

@@ -4,7 +4,7 @@ from typing import Tuple
 import numpy as np
 from loguru import logger
 
-from .market import MarketPair, TradeOrder
+from market import MarketPair, TradeOrder
 
 
 class MidPrice:

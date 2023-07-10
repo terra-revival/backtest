@@ -11,16 +11,16 @@ from bokeh.plotting import Figure, figure
 from bokeh.transform import dodge
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
-from .market import MarketPair, Pool, TradeOrder, split_ticker
-from .simulation import swap_simulation
-from .swap import (
+from market import MarketPair, Pool, TradeOrder, split_ticker
+from simulation import swap_simulation
+from swap import (
     MidPrice,
     constant_product_curve,
     constant_product_swap,
     order_book,
     price_impact_range,
 )
-from .utils import figure_specialization, format_df, resample, timer_func
+from utils import figure_specialization, format_df, resample, timer_func
 
 
 def new_constant_product_figure(
@@ -550,6 +550,72 @@ def new_simulation_figure(mkt, simul, plot_width=900, plot_height=600):
     )
 
 
+def new_div_simulation_figure(mkt, simul, label_add="", plot_width=900, plot_height=600):
+    df_sim = simul["breakdown"]
+    title_text = (
+        f"{mkt.ticker} Divergence Tax Simulation between {label_add} {df_sim.index.min()} and {df_sim.index.max()}"
+    )
+    return layout(
+        [
+            [Div(text=f"<h1 style='text-align:center'>{title_text}</h1>")],
+            [
+                [Div(text=format_df(simul["headline"], width=plot_width))],
+                [Div(text=format_df(mkt.assets(), width=plot_width))],
+                [Div(text=format_df(mkt.perf(), width=plot_width))],
+            ],
+            [
+                [
+                    new_pnl_figure(
+                        df_sim, plot_width=plot_width, plot_height=plot_height
+                    )
+                ],
+                [
+                    new_portfolio_figure(
+                        df_sim, plot_width=plot_width, plot_height=plot_height
+                    ),
+                ],
+            ],
+            [
+                [
+                    new_price_figure(
+                        df_sim, plot_width=plot_width, plot_height=plot_height
+                    ),
+                ],
+                [
+                    new_fitted_pnl_figure(
+                        df_sim, plot_width=plot_width, plot_height=plot_height
+                    )
+                ],
+            ],
+            [
+                [
+                    new_sim_price_impact_figure(
+                        df_sim, plot_width=plot_width, plot_height=plot_height
+                    ),
+                ],
+                [
+                    new_roi_distrib_figure(
+                        df_sim, plot_width=plot_width, plot_height=plot_height
+                    ),
+                ],
+            ],
+            [
+                [
+                    new_tax_profit_figure(
+                        df_sim, plot_width=plot_width, plot_height=plot_height
+                    ),
+                ],
+                [
+                    new_asset_figure(
+                        mkt, df_sim, plot_width=plot_width, plot_height=plot_height
+                    ),
+                ],
+            ],
+        ],
+        sizing_mode="stretch_both",
+    )
+
+
 def new_df_div(df, plot_width=900, plot_height=600):
     return Div(text=format_df(df))
     # return Div(text=format_df(df),width=plot_width, height=plot_height)
@@ -850,6 +916,39 @@ def new_sim_price_impact_figure(
     y_percent_format=False,
 )
 def new_pnl_arb_figure(
+    df_sim: pd.DataFrame,
+    title: str,
+    x_label: str,
+    y_label: str,
+    y_cols: List[str],
+    colors: List[str],
+    y_percent_format: bool,
+    plot_width=900,
+    plot_height=600,
+):
+    return new_curve_figure(
+        df_sim,
+        title=title,
+        x_label=x_label,
+        y_label=y_label,
+        y_cols=y_cols,
+        colors=colors,
+        y_percent_format=y_percent_format,
+        plot_width=plot_width,
+        plot_height=plot_height,
+    )
+
+
+@timer_func
+@figure_specialization(
+    title="CEX Tax Profit",
+    x_label="",
+    y_label="",
+    y_cols=["total_cex_profit", "total_chain_profit"],
+    colors=["navy", "red"],
+    y_percent_format=False,
+)
+def new_tax_profit_figure(
     df_sim: pd.DataFrame,
     title: str,
     x_label: str,
