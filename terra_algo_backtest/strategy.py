@@ -41,7 +41,7 @@ def uni_v2(row: dict, mkt: MarketPair, args: dict) -> List[dict]:
     return trade_exec_info
 
 
-def div_protocol(trade: TradeOrder, mkt: MarketPair, args: dict, dt: datetime.datetime) -> List[dict]:
+def div_protocol(trade: TradeOrder, mkt: MarketPair, args: dict, dt: datetime.datetime, is_buy_back: bool = False) -> List[dict]:
     """UNI v2 LP strategy with divergence protocol.
 
     Args:
@@ -65,10 +65,13 @@ def div_protocol(trade: TradeOrder, mkt: MarketPair, args: dict, dt: datetime.da
     }
 
     # divergence tax if applicable
-    if (exec_price < args['soft_peg_price'] and args['soft_peg_price'] == 1) or (args['soft_peg_price'] < 1):
-        T = abs(exec_price - args['soft_peg_price']) * (1 - args['arbitrage_coef'])
-        executed['cex_profit'] = T * args['cex_tax_coef'] * trade.order_size
-        executed['chain_profit'] = T * (1 - args['cex_tax_coef']) * trade.order_size
+    if is_buy_back:
+        executed['buy_back_vol'] = trade.order_size
+    else:
+        if (exec_price < args['soft_peg_price'] and args['soft_peg_price'] == 1) or (args['soft_peg_price'] < 1):
+            T = abs(exec_price - args['soft_peg_price']) * (1 - args['arbitrage_coef'])
+            executed['cex_profit'] = T * args['cex_tax_coef'] * trade.order_size
+            executed['chain_profit'] = T * (1 - args['cex_tax_coef']) * trade.order_size
     trade_exec_info.append(executed)
     return trade_exec_info
 

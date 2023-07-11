@@ -34,7 +34,11 @@ div_protocol_args = {
     "cex_tax_coef": 0.4,
     "buy_backs_coef": 0.1,
     "timeframe": 3600,
-    "start_date": datetime.now()
+    "start_date": datetime.now(),
+    "swap_pool_coef": 0.475,
+    "staking_pool_coef": 0.475,
+    "oracle_pool_coef": 0.025,
+    "community_pool_coef": 0.025
 }
 # check div protocol sanity
 assert div_protocol_args['soft_peg_price'] > 0, "soft_peg should be > 0"

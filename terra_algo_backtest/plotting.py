@@ -564,52 +564,35 @@ def new_div_simulation_figure(mkt, simul, label_add="", plot_width=900, plot_hei
                 [Div(text=format_df(mkt.perf(), width=plot_width))],
             ],
             [
-                [
-                    new_pnl_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    )
+                [new_tax_profit_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                ),
+                    new_buy_back_figure(df_sim, plot_width=plot_width,
+                                        plot_height=plot_height),
+                    new_swap_pool_figure(df_sim, plot_width=plot_width,
+                                         plot_height=plot_height),
+                    new_staking_pool_figure(df_sim, plot_width=plot_width,
+                                            plot_height=plot_height),
+                    new_oracle_pool_figure(df_sim, plot_width=plot_width,
+                                           plot_height=plot_height),
+                    new_community_pool_figure(df_sim, plot_width=plot_width,
+                                              plot_height=plot_height),
                 ],
-                [
-                    new_portfolio_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
-            ],
-            [
-                [
-                    new_price_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
-                [
-                    new_fitted_pnl_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    )
-                ],
-            ],
-            [
-                [
-                    new_sim_price_impact_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
-                [
-                    new_roi_distrib_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
-            ],
-            [
-                [
-                    new_tax_profit_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
-                [
-                    new_asset_figure(
-                        mkt, df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
+                [new_price_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                ), new_pnl_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                ), new_portfolio_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                ), new_fitted_pnl_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                ), new_sim_price_impact_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                ), new_roi_distrib_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                ), new_asset_figure(
+                    mkt, df_sim, plot_width=plot_width, plot_height=plot_height
+                )]
             ],
         ],
         sizing_mode="stretch_both",
@@ -949,6 +932,171 @@ def new_pnl_arb_figure(
     y_percent_format=False,
 )
 def new_tax_profit_figure(
+    df_sim: pd.DataFrame,
+    title: str,
+    x_label: str,
+    y_label: str,
+    y_cols: List[str],
+    colors: List[str],
+    y_percent_format: bool,
+    plot_width=900,
+    plot_height=600,
+):
+    return new_curve_figure(
+        df_sim,
+        title=title,
+        x_label=x_label,
+        y_label=y_label,
+        y_cols=y_cols,
+        colors=colors,
+        y_percent_format=y_percent_format,
+        plot_width=plot_width,
+        plot_height=plot_height,
+    )
+
+
+@timer_func
+@figure_specialization(
+    title="Total buy back volume",
+    x_label="",
+    y_label="",
+    y_cols=["total_buy_back_vol"],
+    colors=["navy"],
+    y_percent_format=False,
+)
+def new_buy_back_figure(
+    df_sim: pd.DataFrame,
+    title: str,
+    x_label: str,
+    y_label: str,
+    y_cols: List[str],
+    colors: List[str],
+    y_percent_format: bool,
+    plot_width=900,
+    plot_height=600,
+):
+    return new_curve_figure(
+        df_sim,
+        title=title,
+        x_label=x_label,
+        y_label=y_label,
+        y_cols=y_cols,
+        colors=colors,
+        y_percent_format=y_percent_format,
+        plot_width=plot_width,
+        plot_height=plot_height,
+    )
+
+
+@timer_func
+@figure_specialization(
+    title="Swap pool",
+    x_label="",
+    y_label="",
+    y_cols=["total_swap_pool"],
+    colors=["navy"],
+    y_percent_format=False,
+)
+def new_swap_pool_figure(
+    df_sim: pd.DataFrame,
+    title: str,
+    x_label: str,
+    y_label: str,
+    y_cols: List[str],
+    colors: List[str],
+    y_percent_format: bool,
+    plot_width=900,
+    plot_height=600,
+):
+    return new_curve_figure(
+        df_sim,
+        title=title,
+        x_label=x_label,
+        y_label=y_label,
+        y_cols=y_cols,
+        colors=colors,
+        y_percent_format=y_percent_format,
+        plot_width=plot_width,
+        plot_height=plot_height,
+    )
+
+
+@timer_func
+@figure_specialization(
+    title="Staking pool",
+    x_label="",
+    y_label="",
+    y_cols=["total_staking_pool"],
+    colors=["navy"],
+    y_percent_format=False,
+)
+def new_swap_pool_figure(
+    df_sim: pd.DataFrame,
+    title: str,
+    x_label: str,
+    y_label: str,
+    y_cols: List[str],
+    colors: List[str],
+    y_percent_format: bool,
+    plot_width=900,
+    plot_height=600,
+):
+    return new_curve_figure(
+        df_sim,
+        title=title,
+        x_label=x_label,
+        y_label=y_label,
+        y_cols=y_cols,
+        colors=colors,
+        y_percent_format=y_percent_format,
+        plot_width=plot_width,
+        plot_height=plot_height,
+    )
+
+
+@timer_func
+@figure_specialization(
+    title="Community pool",
+    x_label="",
+    y_label="",
+    y_cols=["total_community_pool"],
+    colors=["navy"],
+    y_percent_format=False,
+)
+def new_community_pool_figure(
+    df_sim: pd.DataFrame,
+    title: str,
+    x_label: str,
+    y_label: str,
+    y_cols: List[str],
+    colors: List[str],
+    y_percent_format: bool,
+    plot_width=900,
+    plot_height=600,
+):
+    return new_curve_figure(
+        df_sim,
+        title=title,
+        x_label=x_label,
+        y_label=y_label,
+        y_cols=y_cols,
+        colors=colors,
+        y_percent_format=y_percent_format,
+        plot_width=plot_width,
+        plot_height=plot_height,
+    )
+
+
+@timer_func
+@figure_specialization(
+    title="Oracle pool",
+    x_label="",
+    y_label="",
+    y_cols=["total_oracle_pool"],
+    colors=["navy"],
+    y_percent_format=False,
+)
+def new_oracle_pool_figure(
     df_sim: pd.DataFrame,
     title: str,
     x_label: str,
