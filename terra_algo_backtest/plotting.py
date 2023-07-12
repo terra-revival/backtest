@@ -550,10 +550,10 @@ def new_simulation_figure(mkt, simul, plot_width=900, plot_height=600):
     )
 
 
-def new_div_simulation_figure(mkt, simul, label_add="", plot_width=900, plot_height=600):
+def new_div_simulation_figure(mkt, simul, label_add="", plot_width=600, plot_height=300):
     df_sim = simul["breakdown"]
     title_text = (
-        f"{mkt.ticker} Divergence Tax Simulation between {label_add} {df_sim.index.min()} and {df_sim.index.max()}"
+        f"{mkt.ticker} Divergence Tax Simulation {label_add}</br>{df_sim.index.min()} and {df_sim.index.max()}"
     )
     return layout(
         [
@@ -566,36 +566,55 @@ def new_div_simulation_figure(mkt, simul, label_add="", plot_width=900, plot_hei
             [
                 [new_tax_profit_figure(
                     df_sim, plot_width=plot_width, plot_height=plot_height
-                ),
-                    new_buy_back_figure(df_sim, plot_width=plot_width,
-                                        plot_height=plot_height),
-                    new_swap_pool_figure(df_sim, plot_width=plot_width,
-                                         plot_height=plot_height),
-                    new_staking_pool_figure(df_sim, plot_width=plot_width,
-                                            plot_height=plot_height),
-                    new_oracle_pool_figure(df_sim, plot_width=plot_width,
-                                           plot_height=plot_height),
-                    new_community_pool_figure(df_sim, plot_width=plot_width,
-                                              plot_height=plot_height),
-                ],
+                )],
+
                 [new_price_figure(
                     df_sim, plot_width=plot_width, plot_height=plot_height
-                ), new_pnl_figure(
+                )],
+            ],
+            [
+                [new_buy_back_figure(df_sim, plot_width=plot_width,
+                                     plot_height=plot_height)],
+
+                [new_pnl_figure(
                     df_sim, plot_width=plot_width, plot_height=plot_height
-                ), new_portfolio_figure(
-                    df_sim, plot_width=plot_width, plot_height=plot_height
-                ), new_fitted_pnl_figure(
-                    df_sim, plot_width=plot_width, plot_height=plot_height
-                ), new_sim_price_impact_figure(
-                    df_sim, plot_width=plot_width, plot_height=plot_height
-                ), new_roi_distrib_figure(
-                    df_sim, plot_width=plot_width, plot_height=plot_height
-                ), new_asset_figure(
-                    mkt, df_sim, plot_width=plot_width, plot_height=plot_height
                 )]
             ],
+            [
+                [new_swap_pool_figure(df_sim, plot_width=plot_width,
+                                      plot_height=plot_height)],
+
+                [new_portfolio_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                )]
+            ],
+            [
+                [new_staking_pool_figure(df_sim, plot_width=plot_width,
+                                         plot_height=plot_height)],
+
+                [new_fitted_pnl_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                )]
+            ],
+            [
+                [new_oracle_pool_figure(df_sim, plot_width=plot_width,
+                                        plot_height=plot_height)],
+                [new_sim_price_impact_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                )]
+
+            ],
+            [
+                [new_community_pool_figure(df_sim, plot_width=plot_width,
+                                           plot_height=plot_height)],
+
+                [new_roi_distrib_figure(
+                    df_sim, plot_width=plot_width, plot_height=plot_height
+                )]
+            ]
+
         ],
-        sizing_mode="stretch_both",
+        sizing_mode="scale_both",
     )
 
 
@@ -614,6 +633,8 @@ def new_curve_figure(
     y_percent_format: bool = False,
     plot_width=900,
     plot_height=600,
+
+
 ):
     p = figure(
         title=title,
@@ -757,8 +778,8 @@ def new_distrib_figure(
     return p
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="P&L",
     x_label="",
     y_label="",
@@ -790,8 +811,8 @@ def new_pnl_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Price",
     x_label="",
     y_label="",
@@ -823,8 +844,8 @@ def new_price_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Portfolio",
     x_label="",
     y_label="",
@@ -856,8 +877,8 @@ def new_portfolio_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Price Impact",
     x_label="",
     y_label="",
@@ -889,8 +910,8 @@ def new_sim_price_impact_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="P&L Arbitrage",
     x_label="",
     y_label="",
@@ -922,8 +943,8 @@ def new_pnl_arb_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="CEX Tax Profit",
     x_label="",
     y_label="",
@@ -955,8 +976,8 @@ def new_tax_profit_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Total buy back volume",
     x_label="",
     y_label="",
@@ -988,8 +1009,8 @@ def new_buy_back_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Swap pool",
     x_label="",
     y_label="",
@@ -1021,8 +1042,8 @@ def new_swap_pool_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Staking pool",
     x_label="",
     y_label="",
@@ -1030,7 +1051,7 @@ def new_swap_pool_figure(
     colors=["navy"],
     y_percent_format=False,
 )
-def new_swap_pool_figure(
+def new_staking_pool_figure(
     df_sim: pd.DataFrame,
     title: str,
     x_label: str,
@@ -1054,8 +1075,8 @@ def new_swap_pool_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Community pool",
     x_label="",
     y_label="",
@@ -1087,8 +1108,8 @@ def new_community_pool_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Oracle pool",
     x_label="",
     y_label="",
@@ -1120,8 +1141,8 @@ def new_oracle_pool_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="P&L Vs Perf",
     x_label="",
     y_label="",
@@ -1156,8 +1177,8 @@ def new_fitted_pnl_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="P&L Breakdown Vs Perf",
     x_label="",
     y_label="",
@@ -1189,8 +1210,8 @@ def new_fitted_pnl_breakdown_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Price Impact Vs Perf",
     x_label="",
     y_label="",
@@ -1225,8 +1246,8 @@ def new_fitted_price_impact_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Market Price Returns",
     x_label="",
     y_label="",
@@ -1258,8 +1279,8 @@ def new_mkt_price_distrib_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="ROI",
     x_label="",
     y_label="",
@@ -1291,8 +1312,8 @@ def new_roi_distrib_figure(
     )
 
 
-@timer_func
-@figure_specialization(
+@ timer_func
+@ figure_specialization(
     title="Price Impact",
     x_label="",
     y_label="",

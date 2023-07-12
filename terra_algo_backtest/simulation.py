@@ -80,8 +80,13 @@ def peg_simulation(
         sum_chain_profit = 0
         for trade in trades:
             sum_chain_profit += trade['chain_profit']
+            trade['swap_pool'] = 0
+            trade['staking_pool'] = 0
+            trade['oracle_pool'] = 0
+            trade['community_pool'] = 0            
+            trade['buy_back_vol'] = 0
         if sum_chain_profit > 0:
-            buy_back = TradeOrder(mkt.ticker, sum_chain_profit /
+            '''buy_back = TradeOrder(mkt.ticker, sum_chain_profit /
                                   mkt.mid_price, mkt.swap_fee)
             buy_back_trades = strategy(buy_back, mkt, args,
                                        args['start_date'] + timedelta(seconds=args['timeframe']*idx), True)
@@ -91,7 +96,7 @@ def peg_simulation(
                 b['oracle_pool'] = b['buy_back_vol'] * args['oracle_pool_coef']
                 b['community_pool'] = b['buy_back_vol'] * args['community_pool_coef']
 
-            trade_exec_info.extend(buy_back_trades)
+            trade_exec_info.extend(buy_back_trades)'''
             a = 1
 
     gc.enable()
