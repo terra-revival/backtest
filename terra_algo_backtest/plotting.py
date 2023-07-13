@@ -1,10 +1,12 @@
 import sys
+from copy import deepcopy
 from functools import partial, update_wrapper
 from typing import Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 import scipy
+from bokeh.io import show
 from bokeh.layouts import gridplot, layout
 from bokeh.models import ColumnDataSource, Div, HoverTool, NumeralTickFormatter
 from bokeh.plotting import Figure, figure
@@ -12,7 +14,13 @@ from bokeh.transform import dodge
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
 from .market import MarketPair, Pool, TradeOrder, split_ticker
-from .swap import MidPrice, constant_product_curve, order_book, price_impact_range
+from .swap import (
+    MidPrice,
+    constant_product_curve,
+    constant_product_swap,
+    order_book,
+    price_impact_range,
+)
 from .utils import format_df, resample, timer_func
 
 
@@ -272,6 +280,86 @@ def new_pool_figure(
     return p
 
 
+def cp_amm_autoviz(
+    mkt: MarketPair,
+    order: TradeOrder | None = None,
+    x_min: float | None = None,
+    x_max: float | None = None,
+    num: int | None = None,
+    precision: float | None = None,
+    plot_width=900,
+    plot_height=600,
+):
+    """Autoviz for liquidity pools.
+
+    Args:
+        pool_1 (Pool):
+            Liquidity pool 1
+
+        pool_2 (Pool):
+            Liquidity pool 2
+
+        k (float, optional):
+            Constant product invariant
+
+        dx (float, optional):
+            The order size
+
+        x_min (float, optional):
+            Start of the range for the x-axis
+
+        x_max (float, optional):
+            End of the range for the x-axis
+
+        num (int, optional):
+            Number of points to plot
+
+        precision (float, optional):
+            Precision at which the invariant is evaluated
+
+        plot_width (int, optional):
+            Width of the plot
+
+        plot_height (int, optional):
+            Height of the plot
+
+        compact (bool, optional):
+            If True, 2 plots per row are displayed
+            Else, 1 plot per row is displayed
+
+    """
+    order = order or TradeOrder.create_default(mkt)
+    p1 = new_constant_product_figure(
+        mkt,
+        plot_width=plot_width,
+        plot_height=plot_height,
+        x_min=x_min,
+        x_max=x_max,
+        num=num,
+    )
+    p2 = new_price_impact_figure(
+        mkt,
+        order,
+        precision=precision,
+        plot_width=plot_width,
+        plot_height=plot_height,
+        x_min=x_min,
+        x_max=x_max,
+        num=num,
+    )
+    swap_mkt = deepcopy(mkt)
+    constant_product_swap(swap_mkt, order, precision=precision)
+    p3 = new_pool_figure(
+        swap_mkt.pool_1,
+        swap_mkt.pool_2,
+        ["Before Swap", "After Swap"],
+        plot_width=plot_width,
+        plot_height=plot_height,
+    )
+    p4 = new_order_book_figure(mkt, plot_width=plot_width, plot_height=plot_height)
+    show(layout([[p1, p2], [p3, p4]], sizing_mode="stretch_both"))
+
+
 def plot_asset_reserves(
     df_sim, pool_1_ticker, pool_2_ticker, steps, plot_width=900, plot_height=600
 ):
@@ -457,21 +545,29 @@ def new_trade_figure(df_1, df_2, df_composite, ticker):
 
     return layout(
         [
-            [Div(text=f"<h1 style='text-align:center'>{title_text}</h1>")],
-            [Div(text=format_cointegration_result(coint_res))],
-            [
-                plot_price_ratio(df_1, df_2, symbol_1, symbol_2),
-                plot_scatterplot(df_1, df_2, symbol_1, symbol_2),
-            ],
-            [
-                [
-                    Div(text=format_df(df_composite.head(10))),
-                ],
-                [
-                    Div(text=format_df(df_1.head(10))),
-                    Div(text=format_df(df_2.head(10))),
-                ],
-            ],
+            Div(text=f"<h1 style='text-align:center'>{title_text}</h1>"),
+        ],
+        [
+            Div(text=format_cointegration_result(coint_res)),
+        ],
+        [
+            plot_price_ratio(df_1, df_2, symbol_1, symbol_2),
+            plot_scatterplot(df_1, df_2, symbol_1, symbol_2),
+        ],
+        [
+            Div(
+                text=format_df(
+                    df_composite[["price", "quantity", "direction", "asset_unit"]].head(
+                        10
+                    )
+                )
+            ),
+        ],
+        [
+            Div(text=format_df(df_1.head(10))),
+        ],
+        [
+            Div(text=format_df(df_2.head(10))),
         ],
         sizing_mode="stretch_both",
     )
@@ -729,15 +825,17 @@ def new_simulation_figure(mkt: MarketPair, simul: dict) -> layout:
     )
     return layout(
         [
-            [Div(text=f"<h1 style='text-align:center'>{title_text}</h1>")],
-            [
-                [Div(text=format_df(simul["headline"]))],
-                [Div(text=format_df(mkt.assets()))],
-                [Div(text=format_df(mkt.perf()))],
-            ],
-            [
-                create_simulation_gridplot(mkt, simul),
-            ],
+            Div(text=f"<h1 style='text-align:center'>{title_text}</h1>"),
+        ],
+        [
+            Div(text=format_df(simul["headline"])),
+        ],
+        [
+            Div(text=format_df(mkt.assets())),
+            Div(text=format_df(mkt.perf())),
+        ],
+        [
+            create_simulation_gridplot(mkt, simul),
         ],
         sizing_mode="scale_both",
     )
