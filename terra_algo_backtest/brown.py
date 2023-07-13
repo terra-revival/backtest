@@ -1,8 +1,9 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from helpers import pltShowWaitKey
 import math
+
+import matplotlib.pyplot as plt
+import numpy as np
 from colour import Color
+from helpers import pltShowWaitKey
 
 
 def brownian_motion(N, T, h):
@@ -11,9 +12,10 @@ def brownian_motion(N, T, h):
     :param int T: the number of continuous time steps
     :param float h: the variance of the increments
     """
-    dt = 1. * T/N  # the normalizing constant
-    random_increments = np.random.normal(
-        0.0, 1.0 * h, N)*np.sqrt(dt)  # the epsilon values
+    dt = 1.0 * T / N  # the normalizing constant
+    random_increments = np.random.normal(0.0, 1.0 * h, N) * np.sqrt(
+        dt
+    )  # the epsilon values
     brownian_motion = np.cumsum(random_increments)  # calculate the brownian motion
     brownian_motion = np.insert(brownian_motion, 0, 0.0)  # insert the initial condition
 
@@ -33,26 +35,36 @@ def drifted_brownian_motion(mu, sigma, N, T, h, niceConnect=False):
     # standard brownian motion
     W, _ = brownian_motion(N, T, h)
     # the normalizing constant
-    dt = 1. * T/N
+    dt = 1.0 * T / N
     # generate the time steps
-    time_steps = np.linspace(0.0, N*dt, N+1)
+    time_steps = np.linspace(0.0, N * dt, N + 1)
     step_size = math.floor(N / len(mu))
-    X = np.linspace(0.0, N*dt, N+1)
+    X = np.linspace(0.0, N * dt, N + 1)
     for muIndex in range(0, len(mu)):
         # get indexes inside time series
         start = step_size * muIndex
-        end = step_size * (muIndex+1) if muIndex < len(mu) else None
+        end = step_size * (muIndex + 1) if muIndex < len(mu) else None
         # update original brownian motion with part drift
-        X[start:end] = mu[muIndex] * time_steps[start:end] + sigma * \
-            W[start:end]
+        X[start:end] = mu[muIndex] * time_steps[start:end] + sigma * W[start:end]
         # smooth the drift point
         if start > 0 and niceConnect:
             X[start:end] -= X[start] - X[start - 1]
 
-    return X[0:len(X)-1]
+    return X[0 : len(X) - 1]
 
 
-def runSamples(N, T, h, sigma, seed, drifts, varianceIncrements=None, continuousSteps=None, sigmaSteps=None, niceDriftConnect=False):
+def runSamples(
+    N,
+    T,
+    h,
+    sigma,
+    seed,
+    drifts,
+    varianceIncrements=None,
+    continuousSteps=None,
+    sigmaSteps=None,
+    niceDriftConnect=False,
+):
     """
     run brownian motions with different parameters to try the outcome = playground
     example runSamples(500, 14, 1, 50, 420, [100, -50, 0, 35, 10], [1, 2, 4, 8], [1, 2, 4, 8], [1, 2, 8, 32])
@@ -60,7 +72,7 @@ def runSamples(N, T, h, sigma, seed, drifts, varianceIncrements=None, continuous
     :param int T: number of continuous time steps
     :param float h: variance of increments for brownian motion
     :param float sigma: volatility coefficient
-    :param [float] mu: drift coefficient    
+    :param [float] mu: drift coefficient
     :param [float] varianceIncrements: variance increments
     :param [float] continuousSteps: continuous steps
     :param [float] sigmaSteps: sigma steps
@@ -146,32 +158,34 @@ def simulationSamples(seed=1420, doPlot=False) -> dict:
     X = drifted_brownian_motion([-100, 10, -10, 10, -10], 1, steps, 1, 4, True)
     X = X - np.min(X)
     if doPlot:
-        plt.plot(np.linspace(0, X.size, X.size), X,
-                 'g', label='drifted big dump, steady')
-    prices['drifted big dump, steady'] = X
+        plt.plot(
+            np.linspace(0, X.size, X.size), X, "g", label="drifted big dump, steady"
+        )
+    prices["drifted big dump, steady"] = X
 
     X = drifted_brownian_motion([-10, 10, -10, 10, 100], 1, steps, 1, 4, True)
     X = X - np.min(X)
     if doPlot:
-        plt.plot(np.linspace(0, X.size, X.size), X,
-                 'r', label='drifted steady, big pump')
-    prices['drifted steady, big pump'] = X
+        plt.plot(
+            np.linspace(0, X.size, X.size), X, "r", label="drifted steady, big pump"
+        )
+    prices["drifted steady, big pump"] = X
 
     X, epsilon = brownian_motion(steps, 1, 4)
     X = X - np.min(X)
     if doPlot:
-        plt.plot(np.linspace(0, X.size, X.size), X, 'y', label='steady brownian')
-    prices['steady brownian'] = X
+        plt.plot(np.linspace(0, X.size, X.size), X, "y", label="steady brownian")
+    prices["steady brownian"] = X
 
     X, epsilon = brownian_motion(steps, 1, 8)
     X = X - np.min(X)
     if doPlot:
-        plt.plot(np.linspace(0, X.size, X.size), X, 'b', label='wild brownian')
-    prices['wild brownian'] = X
+        plt.plot(np.linspace(0, X.size, X.size), X, "b", label="wild brownian")
+    prices["wild brownian"] = X
 
     if doPlot:
         plt.legend()
-        plt.title('Repeg test scenarios')
+        plt.title("Repeg test scenarios")
         plt.show()
 
     return prices
