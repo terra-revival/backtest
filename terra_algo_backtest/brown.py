@@ -67,7 +67,8 @@ def runSamples(
 ):
     """
     run brownian motions with different parameters to try the outcome = playground
-    example runSamples(500, 14, 1, 50, 420, [100, -50, 0, 35, 10], [1, 2, 4, 8], [1, 2, 4, 8], [1, 2, 8, 32])
+    example runSamples(500, 14, 1, 50, 420, [100, -50, 0, 35, 10], [1, 2, 4, 8],
+    [1, 2, 4, 8], [1, 2, 8, 32])
     :param int N : number of discrete steps
     :param int T: number of continuous time steps
     :param float h: variance of increments for brownian motion
