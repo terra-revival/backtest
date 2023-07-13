@@ -1,26 +1,19 @@
-from copy import deepcopy
-from typing import List
+import sys
+from functools import partial, update_wrapper
+from typing import Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 import scipy
-from bokeh.io import show
-from bokeh.layouts import layout
-from bokeh.models import ColumnDataSource, Div, HoverTool, NumeralTickFormatter, Span
+from bokeh.layouts import gridplot, layout
+from bokeh.models import ColumnDataSource, Div, HoverTool, NumeralTickFormatter
 from bokeh.plotting import Figure, figure
 from bokeh.transform import dodge
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
 from .market import MarketPair, Pool, TradeOrder, split_ticker
-from .simulation import swap_simulation
-from .swap import (
-    MidPrice,
-    constant_product_curve,
-    constant_product_swap,
-    order_book,
-    price_impact_range,
-)
-from .utils import figure_specialization, format_df, resample, timer_func
+from .swap import MidPrice, constant_product_curve, order_book, price_impact_range
+from .utils import format_df, resample, timer_func
 
 
 def new_constant_product_figure(
@@ -484,7 +477,252 @@ def new_trade_figure(df_1, df_2, df_composite, ticker):
     )
 
 
-def new_simulation_figure(mkt, simul, plot_width=900, plot_height=600):
+def new_df_div(df, plot_width=900, plot_height=600):
+    return Div(text=format_df(df))
+    # return Div(text=format_df(df),width=plot_width, height=plot_height)
+
+
+def create_line_data(df_index: pd.Index, df_col: pd.Series) -> Dict[str, List]:
+    """Generates line data from a DataFrame column.
+
+    Args:
+        df_index (pd.Index): The DataFrame Index.
+        df_col (pd.Series): The DataFrame column.
+
+    Returns:
+        Dict[str, List]: A dictionary with line data.
+
+    """
+    data = {"x": df_index, "y": df_col}
+    return data
+
+
+def create_distrib_data(
+    df_col: pd.Series, color: Optional[str] = "navy", line_dash: Optional[str] = "solid"
+) -> Dict[str, List]:
+    """Generates distribution data from a DataFrame column.
+
+    Args:
+        df_col (pd.Series): The DataFrame column.
+        color (str, optional): The color of the line.
+        line_dash (str, optional): The style of the line.
+
+    Returns:
+        Dict[str, List]: A dictionary with distribution data.
+
+    """
+    mu, std = df_col.mean(), df_col.std()
+    x = np.linspace(mu - 3 * std, mu + 3 * std, 100)
+    distrib = scipy.stats.norm.pdf(x, loc=mu, scale=std)
+    distrib_normalized = distrib / np.max(distrib)
+    data = {
+        "x": x,
+        "y": distrib_normalized,
+        "color": [color] * len(x),
+        "line_dash": [line_dash] * len(x),
+    }
+    return data
+
+
+def create_fitted_data(
+    df_pivot_col: pd.Series, df_col_agg: pd.Series
+) -> Dict[str, List]:
+    """Generates fitted data from DataFrame columns.
+
+    Args:
+        df_pivot_col (pd.Series): The DataFrame pivot column.
+        df_col_agg (pd.Series): The DataFrame aggregate column.
+
+    Returns:
+        Dict[str, List]: A dictionary with fitted data.
+
+    """
+    coefficients = np.polyfit(df_pivot_col, df_col_agg, 2)
+    fitted_curve = np.poly1d(coefficients)
+    x_range = np.linspace(df_pivot_col.min(), df_pivot_col.max(), 100)
+    return {"x": x_range.tolist(), "y": fitted_curve(x_range).tolist()}
+
+
+def create_data_source(
+    df: pd.DataFrame,
+    column: str,
+    line_type: str,
+    idx_column: Optional[str] = None,
+) -> Dict[str, List]:
+    """Creates a data source based on line type.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        column (str): The DataFrame column to be processed.
+        line_type (str): The line type, choose from 'line', 'distribution', or 'fitted'.
+        idx_column (str, optional): The index column of the DataFrame.
+
+    Returns:
+        Dict[str, List]: A dictionary with the processed data.
+
+    """
+    if line_type == "line":
+        return create_line_data(df.index, df[column])
+    elif line_type == "distribution":
+        return create_distrib_data(df[column])
+    elif line_type == "fitted":
+        if idx_column is None:
+            raise ValueError("idx_column must be specified for fitted line type.")
+        df_group = df.groupby(idx_column)[column].mean().reset_index()
+        return create_fitted_data(df_group[idx_column], df_group[column])
+    else:
+        raise ValueError(
+            "Invalid line type. Choose from 'line', 'distribution', or 'fitted'"
+        )
+
+
+def create_bokeh_figure(
+    data_sets: List[dict], y_percent_format: Optional[bool] = False, **kwargs
+) -> figure:
+    """Creates a Bokeh figure.
+
+    Args:
+        data_sets (List[dict]): A list of data sets for the figure.
+        y_percent_format (bool, optional): If True, formats the y-axis as percentages.
+
+    Returns:
+        figure: A Bokeh figure.
+
+    """
+    p = figure(**kwargs)
+    if y_percent_format:
+        p.yaxis.formatter = NumeralTickFormatter(format="0.00%")
+
+    for data in data_sets:
+        source = ColumnDataSource(data)
+        line_figure = p.line(
+            x="x",
+            y="y",
+            line_width=1,
+            alpha=0.6,
+            color="navy",
+            line_dash="solid",
+            source=source,
+        )
+        hover = HoverTool(
+            tooltips=[("x", "@x{%F}"), ("y", "@y{0.00}")],
+            formatters={"@x": "datetime"},
+            renderers=[line_figure],
+        )
+        p.add_tools(hover)
+    return p
+
+
+def create_line_chart(
+    df: pd.DataFrame,
+    column: str,
+    line_type: str = "line",
+    idx_column: Optional[str] = None,
+    **kwargs,
+) -> figure:
+    """Creates a line chart from DataFrame and column.
+
+    Args:
+        df (pd.DataFrame): The DataFrame.
+        column (str): The DataFrame column to be processed.
+        line_type (str): The line type, choose from 'line', 'distribution', or 'fitted'.
+        idx_column (str, optional): The index column of the DataFrame.
+
+    Returns:
+        figure: A Bokeh figure object with the line chart.
+
+    """
+    data = create_data_source(df, column, line_type, idx_column=idx_column)
+    p = create_bokeh_figure([data], title=column, **kwargs)
+    return p
+
+
+def register(new_function_name: str, column: str) -> Callable:
+    """Registers a new function for a specific column.
+
+    Args:
+        new_function_name (str): The name of the new function.
+        column (str): The DataFrame column to be processed.
+
+    Returns:
+        Callable: The new function.
+
+    """
+    new_function = partial(create_line_chart, column=column)
+    new_function.__doc__ = f"{new_function_name} wrapper with column={column}."
+    update_wrapper(new_function, create_line_chart)
+    setattr(sys.modules[__name__], new_function_name, new_function)
+    return new_function
+
+
+# Register new functions
+create_mid_price_figure = register("create_mid_price_figure", "mid_price")
+create_mkt_price_figure = register("create_mkt_price_figure", "mkt_price")
+create_price_impact_figure = register("create_price_impact_figure", "price_impact")
+create_pnl_figure = register("create_pnl_figure", "roi")
+create_trade_pnl_pct_figure = register("create_trade_pnl_pct_figure", "trade_pnl_pct")
+create_fees_pnl_pct_figure = register("create_fees_pnl_pct_figure", "fees_pnl_pct")
+create_il_figure = register("create_il_figure", "impermanent_loss")
+
+
+def create_simulation_gridplot(mkt: object, simul: dict) -> gridplot:
+    """Creates a simulation grid plot.
+
+    Args:
+        mkt (object): The market object.
+        simul (dict): The simulation dictionary.
+
+    Returns:
+        gridplot: A Bokeh grid plot.
+
+    """
+    df = simul["breakdown"]
+    return gridplot(
+        [
+            [
+                create_pnl_figure(df, x_axis_type="datetime"),
+                create_trade_pnl_pct_figure(df, x_axis_type="datetime"),
+                create_fees_pnl_pct_figure(df, x_axis_type="datetime"),
+            ],
+            [
+                create_price_impact_figure(df, x_axis_type="datetime"),
+                create_mid_price_figure(df, x_axis_type="datetime"),
+                create_mkt_price_figure(df, x_axis_type="datetime"),
+            ],
+            [
+                create_il_figure(df, idx_column="mkt_price_ratio", line_type="fitted"),
+                create_trade_pnl_pct_figure(
+                    df, idx_column="mkt_price_ratio", line_type="fitted"
+                ),
+                create_fees_pnl_pct_figure(
+                    df, idx_column="mkt_price_ratio", line_type="fitted"
+                ),
+            ],
+            [
+                create_pnl_figure(df, line_type="distribution", y_percent_format=True),
+                create_trade_pnl_pct_figure(
+                    df, line_type="distribution", y_percent_format=True
+                ),
+                create_fees_pnl_pct_figure(
+                    df, line_type="distribution", y_percent_format=True
+                ),
+            ],
+        ],
+        sizing_mode="scale_both",
+    )
+
+
+def new_simulation_figure(mkt: MarketPair, simul: dict) -> layout:
+    """Creates a new simulation figure.
+
+    Args:
+        mkt (object): The market object.
+        simul (dict): The simulation dictionary.
+
+    Returns:
+        layout: A Bokeh layout object with the simulation figure.
+
+    """
     df_sim = simul["breakdown"]
     title_text = (
         f"{mkt.ticker} Simulation between {df_sim.index.min()} and {df_sim.index.max()}"
@@ -493,673 +731,13 @@ def new_simulation_figure(mkt, simul, plot_width=900, plot_height=600):
         [
             [Div(text=f"<h1 style='text-align:center'>{title_text}</h1>")],
             [
-                [Div(text=format_df(simul["headline"], width=plot_width))],
-                [Div(text=format_df(mkt.assets(), width=plot_width))],
-                [Div(text=format_df(mkt.perf(), width=plot_width))],
+                [Div(text=format_df(simul["headline"]))],
+                [Div(text=format_df(mkt.assets()))],
+                [Div(text=format_df(mkt.perf()))],
             ],
             [
-                [
-                    new_pnl_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    )
-                ],
-                [
-                    new_portfolio_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
-            ],
-            [
-                [
-                    new_price_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
-                [
-                    new_fitted_pnl_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    )
-                ],
-            ],
-            [
-                [
-                    new_sim_price_impact_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
-                [
-                    new_roi_distrib_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
-            ],
-            [
-                [
-                    new_pnl_arb_figure(
-                        df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
-                [
-                    new_asset_figure(
-                        mkt, df_sim, plot_width=plot_width, plot_height=plot_height
-                    ),
-                ],
+                create_simulation_gridplot(mkt, simul),
             ],
         ],
-        sizing_mode="stretch_both",
+        sizing_mode="scale_both",
     )
-
-
-def new_df_div(df, plot_width=900, plot_height=600):
-    return Div(text=format_df(df))
-    # return Div(text=format_df(df),width=plot_width, height=plot_height)
-
-
-def new_curve_figure(
-    df_sim: pd.DataFrame,
-    title: str = "No Title",
-    x_label: str = "No x_label",
-    y_label: str = "No y_label",
-    y_cols: List[str] = ["No y_cols"],
-    colors: List[str] = ["No colors"],
-    y_percent_format: bool = False,
-    plot_width=900,
-    plot_height=600,
-):
-    p = figure(
-        title=title,
-        x_axis_type="datetime",
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-    p.xaxis.axis_label = x_label
-    p.yaxis.axis_label = y_label
-    p.yaxis.formatter.use_scientific = False
-    if y_percent_format:
-        p.yaxis.formatter = NumeralTickFormatter(format="0.00%")
-
-    for y_i, c_i in zip(y_cols, colors):
-        line = p.line(
-            df_sim.index,
-            df_sim[y_i],
-            line_width=1,
-            alpha=0.6,
-            color=c_i,
-            legend_label=f"{y_i}",
-        )
-
-        # Add hover tooltip
-        hover = HoverTool(
-            tooltips=[
-                ("Date", "$x{%F}"),
-                (f"{y_i}", "$y{0.00}"),
-            ],
-            formatters={"$x": "datetime"},
-            renderers=[line],
-        )
-        p.add_tools(hover)
-
-    return p
-
-
-def new_fitted_curve_figure(
-    df_sim: pd.DataFrame,
-    title: str = "No Title",
-    x_label: str = "No x_label",
-    y_label: str = "No y_label",
-    x_col: str = "No x_col",
-    y_cols: List[str] = ["No y_cols"],
-    colors: List[str] = ["No colors"],
-    line_dash: List[str] = ["No line_dash"],
-    y_percent_format: bool = True,
-    plot_width: int = 900,
-    plot_height: int = 600,
-):
-    p = figure(
-        title=title,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-    p.xaxis.axis_label = x_label
-    p.yaxis.axis_label = y_label
-    p.yaxis.formatter.use_scientific = False
-    if y_percent_format:
-        p.yaxis.formatter = NumeralTickFormatter(format="0.00%")
-
-    x_range = np.linspace(df_sim[x_col].min(), df_sim[x_col].max(), 100)
-    for y_col, color, dash in zip(y_cols, colors, line_dash):
-        # Assuming df_sim is the DataFrame containing your data
-        df_sim_agg = df_sim.groupby(x_col)[y_col].mean().reset_index()
-        # Fit a second-order polynomial
-        coefficients = np.polyfit(df_sim_agg[x_col], df_sim_agg[y_col], 2)
-        # Generate the fitted curve
-        fitted_curve = np.poly1d(coefficients)
-        # plot line
-        p.line(
-            x_range,
-            fitted_curve(x_range),
-            line_width=2,
-            color=color,
-            alpha=0.6,
-            line_dash=dash,
-            legend_label=f"{y_col}",
-        )
-    p.add_layout(
-        Span(
-            location=df_sim[x_col].iloc[-1],
-            dimension="height",
-            line_color="navy",
-            line_dash="solid",
-            line_width=0.5,
-        )
-    )
-    #    p.legend.location = "bottom_right"
-    return p
-
-
-def new_distrib_figure(
-    df_sim: pd.DataFrame,
-    title: str = "No Title",
-    x_label: str = "No x_label",
-    y_label: str = "No y_label",
-    y_cols: list = None,
-    colors: list = None,
-    line_dashes: list = None,
-    plot_width=900,
-    plot_height=600,
-):
-    if y_cols is None:
-        y_cols = []
-
-    if colors is None:
-        colors = ["blue"] * len(y_cols)
-
-    if line_dashes is None:
-        line_dashes = ["solid"] * len(y_cols)
-
-    p = figure(
-        title=title,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-    p.xaxis.axis_label = x_label
-    p.yaxis.axis_label = y_label
-    p.xaxis.formatter.use_scientific = False
-    p.yaxis.formatter.use_scientific = False
-
-    for col, color, line_dash in zip(y_cols, colors, line_dashes):
-        mu, std = df_sim[col].mean(), df_sim[col].std()
-        x = np.linspace(mu - 5 * std, mu + 5 * std, 100)
-        shape, location = scipy.stats.norm.fit(df_sim[col])
-        distrib = scipy.stats.norm.pdf(x, loc=shape, scale=location)
-        distrib_normalized = distrib / np.max(distrib)
-        line = p.line(
-            x, distrib_normalized, line_width=2, line_color=color, line_dash=line_dash
-        )
-        hover = HoverTool(
-            tooltips=[
-                ("x", "$x{0.0000}"),
-                ("y", "$y{0.0000}"),
-            ],
-            renderers=[line],
-        )
-        p.add_tools(hover)
-
-    return p
-
-
-@timer_func
-@figure_specialization(
-    title="P&L",
-    x_label="",
-    y_label="",
-    y_cols=["roi"],
-    colors=["navy"],
-    y_percent_format=True,
-)
-def new_pnl_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    y_cols: List[str],
-    colors: List[str],
-    y_percent_format: bool,
-    plot_width: int = 900,
-    plot_height: int = 600,
-):
-    return new_curve_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        y_cols=y_cols,
-        colors=colors,
-        y_percent_format=y_percent_format,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-@timer_func
-@figure_specialization(
-    title="Price",
-    x_label="",
-    y_label="",
-    y_cols=["price", "avg_price", "mid_price", "mkt_price"],
-    colors=["navy", "red", "black", "grey"],
-    y_percent_format=False,
-)
-def new_price_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    y_cols: List[str],
-    colors: List[str],
-    y_percent_format: bool,
-    plot_width=900,
-    plot_height=600,
-):
-    return new_curve_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        y_cols=y_cols,
-        colors=colors,
-        y_percent_format=y_percent_format,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-@timer_func
-@figure_specialization(
-    title="Portfolio",
-    x_label="",
-    y_label="",
-    y_cols=["hold_portfolio", "current_portfolio"],
-    colors=["navy", "red"],
-    y_percent_format=False,
-)
-def new_portfolio_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    y_cols: List[str],
-    colors: List[str],
-    y_percent_format: bool,
-    plot_width=900,
-    plot_height=600,
-):
-    return new_curve_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        y_cols=y_cols,
-        colors=colors,
-        y_percent_format=y_percent_format,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-@timer_func
-@figure_specialization(
-    title="Price Impact",
-    x_label="",
-    y_label="",
-    y_cols=["price_impact"],
-    colors=["navy"],
-    y_percent_format=True,
-)
-def new_sim_price_impact_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    y_cols: List[str],
-    colors: List[str],
-    y_percent_format: bool,
-    plot_width=900,
-    plot_height=600,
-):
-    return new_curve_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        y_cols=y_cols,
-        colors=colors,
-        y_percent_format=y_percent_format,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-@timer_func
-@figure_specialization(
-    title="P&L Arbitrage",
-    x_label="",
-    y_label="",
-    y_cols=["total_arb_profit"],
-    colors=["navy"],
-    y_percent_format=False,
-)
-def new_pnl_arb_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    y_cols: List[str],
-    colors: List[str],
-    y_percent_format: bool,
-    plot_width=900,
-    plot_height=600,
-):
-    return new_curve_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        y_cols=y_cols,
-        colors=colors,
-        y_percent_format=y_percent_format,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-@timer_func
-@figure_specialization(
-    title="P&L Vs Perf",
-    x_label="",
-    y_label="",
-    x_col="mkt_price_ratio",
-    y_cols=["impermanent_loss", "roi", "trade_pnl_pct", "fees_pnl_pct"],
-    colors=["red", "green", "red", "green"],
-    line_dash=["solid", "solid", "dashed", "dashed"],
-)
-def new_fitted_pnl_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    x_col: str,
-    y_cols: List[str],
-    colors: List[str],
-    line_dash: List[str],
-    plot_width: int = 900,
-    plot_height: int = 600,
-):
-    return new_fitted_curve_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        x_col=x_col,
-        y_cols=y_cols,
-        colors=colors,
-        line_dash=line_dash,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-@timer_func
-@figure_specialization(
-    title="P&L Breakdown Vs Perf",
-    x_label="",
-    y_label="",
-    x_col="mkt_price_ratio",
-    y_cols=["trade_pnl_pct", "fees_pnl_pct"],
-    colors=["red", "green"],
-)
-def new_fitted_pnl_breakdown_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    x_col: str,
-    y_cols: List[str],
-    colors: List[str],
-    plot_width: int = 900,
-    plot_height: int = 600,
-):
-    return new_fitted_curve_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        x_col=x_col,
-        y_cols=y_cols,
-        colors=colors,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-@timer_func
-@figure_specialization(
-    title="Price Impact Vs Perf",
-    x_label="",
-    y_label="",
-    x_col="mkt_price_ratio",
-    y_cols=["price_impact"],
-    colors=["navy"],
-    line_dash=["solid"],
-)
-def new_fitted_price_impact_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    x_col: str,
-    y_cols: List[str],
-    colors: List[str],
-    line_dash: List[str],
-    plot_width: int = 900,
-    plot_height: int = 600,
-):
-    return new_fitted_curve_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        x_col=x_col,
-        y_cols=y_cols,
-        colors=colors,
-        line_dash=line_dash,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-@timer_func
-@figure_specialization(
-    title="Market Price Returns",
-    x_label="",
-    y_label="",
-    y_cols=["mkt_price_ratio"],
-    colors=["navy"],
-    line_dashes=["solid"],
-)
-def new_mkt_price_distrib_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    y_cols: list,
-    colors: list,
-    line_dashes: list,
-    plot_width=900,
-    plot_height=600,
-):
-    return new_distrib_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        y_cols=y_cols,
-        colors=colors,
-        line_dashes=line_dashes,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-@timer_func
-@figure_specialization(
-    title="ROI",
-    x_label="",
-    y_label="",
-    y_cols=["roi", "trade_pnl_pct", "fees_pnl_pct"],
-    colors=["navy", "red", "green"],
-    line_dashes=["solid", "dashed", "dashed"],
-)
-def new_roi_distrib_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    y_cols: list,
-    colors: list,
-    line_dashes: list,
-    plot_width=900,
-    plot_height=600,
-):
-    return new_distrib_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        y_cols=y_cols,
-        colors=colors,
-        line_dashes=line_dashes,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-@timer_func
-@figure_specialization(
-    title="Price Impact",
-    x_label="",
-    y_label="",
-    y_cols=["price_impact"],
-    colors=["navy"],
-    line_dashes=["solid"],
-)
-def new_price_impact_distrib_figure(
-    df_sim: pd.DataFrame,
-    title: str,
-    x_label: str,
-    y_label: str,
-    y_cols: list,
-    colors: list,
-    line_dashes: list,
-    plot_width=900,
-    plot_height=600,
-):
-    return new_distrib_figure(
-        df_sim,
-        title=title,
-        x_label=x_label,
-        y_label=y_label,
-        y_cols=y_cols,
-        colors=colors,
-        line_dashes=line_dashes,
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-
-
-def cp_amm_autoviz(
-    mkt: MarketPair,
-    df_trades: pd.DataFrame | None = None,
-    order: TradeOrder | None = None,
-    x_min: float | None = None,
-    x_max: float | None = None,
-    num: int | None = None,
-    precision: float | None = None,
-    plot_width=900,
-    plot_height=600,
-):
-    """Autoviz for liquidity pools.
-
-    Args:
-        pool_1 (Pool):
-            Liquidity pool 1
-
-        pool_2 (Pool):
-            Liquidity pool 2
-
-        k (float, optional):
-            Constant product invariant
-
-        dx (float, optional):
-            The order size
-
-        x_min (float, optional):
-            Start of the range for the x-axis
-
-        x_max (float, optional):
-            End of the range for the x-axis
-
-        num (int, optional):
-            Number of points to plot
-
-        precision (float, optional):
-            Precision at which the invariant is evaluated
-
-        plot_width (int, optional):
-            Width of the plot
-
-        plot_height (int, optional):
-            Height of the plot
-
-        compact (bool, optional):
-            If True, 2 plots per row are displayed
-            Else, 1 plot per row is displayed
-
-    """
-    order = order or TradeOrder.create_default(mkt)
-    p1 = new_constant_product_figure(
-        mkt,
-        plot_width=plot_width,
-        plot_height=plot_height,
-        x_min=x_min,
-        x_max=x_max,
-        num=num,
-    )
-    p2 = new_price_impact_figure(
-        mkt,
-        order,
-        precision=precision,
-        plot_width=plot_width,
-        plot_height=plot_height,
-        x_min=x_min,
-        x_max=x_max,
-        num=num,
-    )
-    swap_mkt = deepcopy(mkt)
-    constant_product_swap(swap_mkt, order, precision=precision)
-    p3 = new_pool_figure(
-        swap_mkt.pool_1,
-        swap_mkt.pool_2,
-        ["Before Swap", "After Swap"],
-        plot_width=plot_width,
-        plot_height=plot_height,
-    )
-    p4 = new_order_book_figure(mkt, plot_width=plot_width, plot_height=plot_height)
-    if df_trades is not None:
-        simul = swap_simulation(mkt, df_trades, is_arb_enabled=True)
-        show(
-            new_simulation_figure(
-                mkt, simul, plot_width=plot_width, plot_height=plot_height
-            )
-        )
-    show(layout([[p1, p2], [p3, p4]], sizing_mode="stretch_both"))
