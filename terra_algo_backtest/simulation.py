@@ -1,10 +1,11 @@
 import gc
+from datetime import datetime, timedelta
 from typing import Callable, List
 
 import numpy as np
 import pandas as pd
 
-from .market import MarketPair, with_mkt_price
+from .market import MarketPair, TradeOrder, with_mkt_price
 from .utils import timer_func
 
 
@@ -37,14 +38,80 @@ def resample_df(df: pd.DataFrame, resample_freq: str) -> pd.DataFrame:
 def swap_simulation(
     mkt: MarketPair,
     trade_df: pd.DataFrame,
-    strategy: Callable[[dict, MarketPair], List[dict]],
+    strategy: Callable[[dict, MarketPair, dict], List[dict]],
+    args: dict,
 ) -> dict:
     gc.disable()
     trade_exec_info = []
     trades = trade_df.reset_index().to_dict(orient="records")
     for row in trades:
         mkt = with_mkt_price(mkt, row["price"])
-        trade_exec_info.extend(strategy(row, mkt))
+        trade_exec_info.extend(strategy(row, mkt, args))
+    gc.enable()
+    return sim_results(trade_exec_info)
+
+
+@timer_func
+def peg_simulation(
+    mkt: MarketPair,
+    function: List[float],
+    strategy: Callable[[TradeOrder, MarketPair, dict, datetime, bool], List[dict]],
+    args: dict,
+) -> dict:
+    gc.disable()
+    trade_exec_info = []
+    for idx in range(0, len(function) - 2):
+        rel_gain = (function[idx + 1] - function[idx]) / function[idx]
+        mkt = with_mkt_price(mkt, mkt.mkt_price * (1 + rel_gain))
+        dx, dy = mkt.get_delta_reserves()
+        if dy == 0 or dx == 0:
+            continue
+        if dx > 0:
+            # dx = volume in USDT
+            trade = TradeOrder(mkt.ticker, dx, mkt.swap_fee)
+        else:
+            # dy = volume in USTC
+            trade = TradeOrder(mkt.ticker, dy, mkt.swap_fee)
+
+        trades = strategy(
+            trade,
+            mkt,
+            args,
+            args["start_date"] + timedelta(seconds=args["timeframe"] * idx),
+            False,
+        )
+        trade_exec_info.extend(trades)
+
+        # get sum of profits from tax in USDT
+        sum_chain_profit = 0
+        for t in trades:
+            sum_chain_profit += t["chain_profit"]
+            t["swap_pool"] = 0
+            t["staking_pool"] = 0
+            t["oracle_pool"] = 0
+            t["community_pool"] = 0
+            t["buy_back_vol"] = 0
+
+        # if we have profits, do buyback and distribute USTC to pools
+        if sum_chain_profit > 0:
+            buy_back = TradeOrder(mkt.ticker, sum_chain_profit, mkt.swap_fee)
+            buy_back_trades = strategy(
+                buy_back,
+                mkt,
+                args,
+                args["start_date"] + timedelta(seconds=args["timeframe"] * idx),
+                True,
+            )
+            for b in buy_back_trades:
+                b["swap_pool"] = b["buy_back_vol"] * args["swap_pool_coef"]
+                b["staking_pool"] = b["buy_back_vol"] * args["staking_pool_coef"]
+                b["oracle_pool"] = b["buy_back_vol"] * args["oracle_pool_coef"]
+                b["community_pool"] = b["buy_back_vol"] * args["community_pool_coef"]
+                b["cex_profit"] = 0  # we do not tax buybacks yet, see git issue
+                b["chain_profit"] = 0  # we do not tax buybacks yet, see git issue
+
+            trade_exec_info.extend(buy_back_trades)
+
     gc.enable()
     return sim_results(trade_exec_info)
 
@@ -72,6 +139,20 @@ def sim_results(sim_outputs: list) -> dict:
     df_sim["trade_pnl_pct"] = df_sim["trade_pnl"] / df_sim["hold_portfolio"]
     df_sim["fees_pnl_pct"] = df_sim["total_fees_paid_quote"] / df_sim["hold_portfolio"]
     df_sim["total_arb_profit"] = df_sim["arb_profit"].cumsum()
+    if "cex_profit" in df_sim:
+        df_sim["total_cex_profit"] = df_sim["cex_profit"].cumsum()
+    if "chain_profit" in df_sim:
+        df_sim["total_chain_profit"] = df_sim["chain_profit"].cumsum()
+    if "buy_back_vol" in df_sim:
+        df_sim["total_buy_back_vol"] = df_sim["buy_back_vol"].cumsum()
+    if "swap_pool" in df_sim:
+        df_sim["total_swap_pool"] = df_sim["swap_pool"].cumsum()
+    if "staking_pool" in df_sim:
+        df_sim["total_staking_pool"] = df_sim["staking_pool"].cumsum()
+    if "oracle_pool" in df_sim:
+        df_sim["total_oracle_pool"] = df_sim["oracle_pool"].cumsum()
+    if "community_pool" in df_sim:
+        df_sim["total_community_pool"] = df_sim["community_pool"].cumsum()
 
     return {
         "headline": trade_summary(df_sim),

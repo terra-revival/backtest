@@ -759,6 +759,20 @@ create_pnl_figure = register("create_pnl_figure", "roi")
 create_trade_pnl_pct_figure = register("create_trade_pnl_pct_figure", "trade_pnl_pct")
 create_fees_pnl_pct_figure = register("create_fees_pnl_pct_figure", "fees_pnl_pct")
 create_il_figure = register("create_il_figure", "impermanent_loss")
+# Div related functions
+create_cex_profit_figure = register("create_tax_profit_figure", "total_cex_profit")
+create_chain_profit_figure = register(
+    "create_chain_profit_figure", "total_chain_profit"
+)
+create_buy_back_figure = register("create_buy_back_figure", "total_buy_back_vol")
+create_swap_pool_figure = register("create_swap_pool_figure", "total_swap_pool")
+create_staking_pool_figure = register(
+    "create_staking_pool_figure", "total_staking_pool"
+)
+create_oracle_pool_figure = register("create_oracle_pool_figure", "total_oracle_pool")
+create_community_pool_figure = register(
+    "create_community_pool_figure", "total_community_pool"
+)
 
 
 def create_simulation_gridplot(mkt: object, simul: dict) -> gridplot:
@@ -773,37 +787,58 @@ def create_simulation_gridplot(mkt: object, simul: dict) -> gridplot:
 
     """
     df = simul["breakdown"]
-    return gridplot(
+    grids_to_draw = [
         [
-            [
-                create_pnl_figure(df, x_axis_type="datetime"),
-                create_trade_pnl_pct_figure(df, x_axis_type="datetime"),
-                create_fees_pnl_pct_figure(df, x_axis_type="datetime"),
-            ],
-            [
-                create_price_impact_figure(df, x_axis_type="datetime"),
-                create_mid_price_figure(df, x_axis_type="datetime"),
-                create_mkt_price_figure(df, x_axis_type="datetime"),
-            ],
-            [
-                create_il_figure(df, idx_column="mkt_price_ratio", line_type="fitted"),
-                create_trade_pnl_pct_figure(
-                    df, idx_column="mkt_price_ratio", line_type="fitted"
-                ),
-                create_fees_pnl_pct_figure(
-                    df, idx_column="mkt_price_ratio", line_type="fitted"
-                ),
-            ],
-            [
-                create_pnl_figure(df, line_type="distribution", y_percent_format=True),
-                create_trade_pnl_pct_figure(
-                    df, line_type="distribution", y_percent_format=True
-                ),
-                create_fees_pnl_pct_figure(
-                    df, line_type="distribution", y_percent_format=True
-                ),
-            ],
+            create_pnl_figure(df, x_axis_type="datetime"),
+            create_trade_pnl_pct_figure(df, x_axis_type="datetime"),
+            create_fees_pnl_pct_figure(df, x_axis_type="datetime"),
         ],
+        [
+            create_price_impact_figure(df, x_axis_type="datetime"),
+            create_mid_price_figure(df, x_axis_type="datetime"),
+            create_mkt_price_figure(df, x_axis_type="datetime"),
+        ],
+        [
+            create_il_figure(df, idx_column="mkt_price_ratio", line_type="fitted"),
+            create_trade_pnl_pct_figure(
+                df, idx_column="mkt_price_ratio", line_type="fitted"
+            ),
+            create_fees_pnl_pct_figure(
+                df, idx_column="mkt_price_ratio", line_type="fitted"
+            ),
+        ],
+        [
+            create_pnl_figure(df, line_type="distribution", y_percent_format=True),
+            create_trade_pnl_pct_figure(
+                df, line_type="distribution", y_percent_format=True
+            ),
+            create_fees_pnl_pct_figure(
+                df, line_type="distribution", y_percent_format=True
+            ),
+        ],
+    ]
+
+    # if we have cex_profit, it is a div tax simulation, add the charts
+    if "total_cex_profit" in df.columns:
+        grids_to_draw.extend(
+            [
+                [
+                    create_cex_profit_figure(df, x_axis_type="datetime"),
+                    create_chain_profit_figure(df, x_axis_type="datetime"),
+                    create_buy_back_figure(df, x_axis_type="datetime"),
+                ],
+                [
+                    create_swap_pool_figure(df, x_axis_type="datetime"),
+                    create_staking_pool_figure(df, x_axis_type="datetime"),
+                    create_oracle_pool_figure(df, x_axis_type="datetime"),
+                ],
+                [
+                    create_community_pool_figure(df, x_axis_type="datetime"),
+                ],
+            ]
+        )
+    return gridplot(
+        grids_to_draw,
         sizing_mode="scale_both",
     )
 
@@ -820,9 +855,9 @@ def new_simulation_figure(mkt: MarketPair, simul: dict) -> layout:
 
     """
     df_sim = simul["breakdown"]
-    title_text = (
-        f"{mkt.ticker} Simulation between {df_sim.index.min()} and {df_sim.index.max()}"
-    )
+    sim_name = simul["sim_name"] if "sim_name" in simul else ""
+    title_text = f"{mkt.ticker} Simulation < i > {sim_name} < /i > <br/> between \
+        {df_sim.index.min()} and {df_sim.index.max()}"
     return layout(
         [
             Div(text=f"<h1 style='text-align:center'>{title_text}</h1>"),

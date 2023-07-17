@@ -2,6 +2,7 @@ import functools
 from hashlib import sha256
 from time import time
 
+import matplotlib.pyplot as plt
 import pandas as pd
 from pandas.util import hash_pandas_object
 
@@ -89,3 +90,10 @@ def figure_specialization(**metadata):
         return wrapper_new_figure
 
     return decorator_figure_specialization
+
+
+def pltShowWaitKey():
+    plt.get_current_fig_manager().full_screen_toggle()
+    plt.draw()
+    plt.waitforbuttonpress(0)
+    plt.close()

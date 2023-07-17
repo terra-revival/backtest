@@ -3,7 +3,8 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 from colour import Color
-from helpers import pltShowWaitKey
+
+from .utils import pltShowWaitKey
 
 
 def brownian_motion(N, T, h):
@@ -145,7 +146,7 @@ def runSamples(
         pltShowWaitKey()
 
 
-def simulationSamples(seed=1420, doPlot=False) -> dict:
+def simulationSamples(seed=1420, doPlot=False, steps=365 * 24) -> dict:
     """
     list of market model simulations to run against peg
     TODO: add and describe the test cases
@@ -154,10 +155,9 @@ def simulationSamples(seed=1420, doPlot=False) -> dict:
     """
     prices = {}
     np.random.seed(seed)
-    steps = 2 * 365 * 6  # 2 years, 4h timeframe
 
     X = drifted_brownian_motion([-100, 10, -10, 10, -10], 1, steps, 1, 4, True)
-    X = X - np.min(X)
+    X = X - np.min(X) + 0.1
     if doPlot:
         plt.plot(
             np.linspace(0, X.size, X.size), X, "g", label="drifted big dump, steady"
@@ -165,7 +165,7 @@ def simulationSamples(seed=1420, doPlot=False) -> dict:
     prices["drifted big dump, steady"] = X
 
     X = drifted_brownian_motion([-10, 10, -10, 10, 100], 1, steps, 1, 4, True)
-    X = X - np.min(X)
+    X = X - np.min(X) + 0.1
     if doPlot:
         plt.plot(
             np.linspace(0, X.size, X.size), X, "r", label="drifted steady, big pump"
@@ -173,13 +173,13 @@ def simulationSamples(seed=1420, doPlot=False) -> dict:
     prices["drifted steady, big pump"] = X
 
     X, epsilon = brownian_motion(steps, 1, 4)
-    X = X - np.min(X)
+    X = X - np.min(X) + 0.1
     if doPlot:
         plt.plot(np.linspace(0, X.size, X.size), X, "y", label="steady brownian")
     prices["steady brownian"] = X
 
     X, epsilon = brownian_motion(steps, 1, 8)
-    X = X - np.min(X)
+    X = X - np.min(X) + 0.1
     if doPlot:
         plt.plot(np.linspace(0, X.size, X.size), X, "b", label="wild brownian")
     prices["wild brownian"] = X
@@ -190,8 +190,3 @@ def simulationSamples(seed=1420, doPlot=False) -> dict:
         plt.show()
 
     return prices
-
-
-simulationSamples(doPlot=True)
-# runSamples(500, 14, 1, 50, 420, [100, -50, 0, 35, 10, 0, -20, -
-#           20, -20, 20, -70], [1, 2, 4, 8], [1, 2, 4, 8], [1, 2, 8, 32])
