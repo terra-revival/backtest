@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  env:
+    image: 'terra_algo_backtest-env:${ENV_TAG}'
+    container_name: 'terra_algo_backtest-env-${ENV_TAG}'
+    build:
+      dockerfile: './ops/Dockerfile'
+      target: 'python.env'
+      context: '.'
+  deps:
+    image: 'terra_algo_backtest-deps:${DEPS_TAG}'
+    container_name: 'terra_algo_backtest-deps-${DEPS_TAG}'
+    build:
+      dockerfile: './ops/Dockerfile'
+      target: 'env-deps'
+      context: '.'
+      args:
+        DEPS_IMAGE: 'terra_algo_backtest-env:${ENV_TAG}'
+    depends_on:
+      - env
+  build:
+    image: 'terra_algo_backtest-build:${BUILD_TAG}'
+    container_name: 'terra_algo_backtest-build-${BUILD_TAG}'
+    build:
+      dockerfile: './ops/Dockerfile'
+      target: 'env-build'
+      context: .
+      args:
+        DEPS_IMAGE: 'terra_algo_backtest-deps:${DEPS_TAG}'
+    volumes:
+      - .:/app/
+    ports:
+      - '8888:8888'
+    depends_on:
+      - deps
+    command: jupyter notebook --ip 0.0.0.0 --no-browser --notebook-dir '/app/docs/examples/'
