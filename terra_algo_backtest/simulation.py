@@ -54,13 +54,23 @@ def swap_simulation(
 @timer_func
 def peg_simulation(
     mkt: MarketPair,
-    function: List[float],
+    sim_function: dict,
     strategy: Callable[[TradeOrder, MarketPair, dict, datetime, bool], List[dict]],
     args: dict,
+    softpeg_strategy: Callable[[List[float], int, List[dict], dict], bool] | None,
 ) -> dict:
     gc.disable()
     trade_exec_info = []
+
+    # store the starting soft peg price, as we possibly change it via softpeg_strategy
+    args["soft_peg_start"] = args["soft_peg_price"]
+    function = sim_function["data"]
+    timeframe = sim_function["timeframe"]
     for idx in range(0, len(function) - 2):
+        # check if we raise the softpeg
+        if softpeg_strategy:
+            softpeg_strategy(function, idx, trade_exec_info, args)
+
         rel_gain = (function[idx + 1] - function[idx]) / function[idx]
         mkt = with_mkt_price(mkt, mkt.mkt_price * (1 + rel_gain))
         dx, dy = mkt.get_delta_reserves()
@@ -77,7 +87,7 @@ def peg_simulation(
             trade,
             mkt,
             args,
-            args["start_date"] + timedelta(seconds=args["timeframe"] * idx),
+            args["start_date"] + timedelta(seconds=timeframe * idx),
             False,
         )
         trade_exec_info.extend(trades)
@@ -99,7 +109,7 @@ def peg_simulation(
                 buy_back,
                 mkt,
                 args,
-                args["start_date"] + timedelta(seconds=args["timeframe"] * idx),
+                args["start_date"] + timedelta(seconds=timeframe * idx),
                 True,
             )
             for b in buy_back_trades:
@@ -109,7 +119,6 @@ def peg_simulation(
                 b["community_pool"] = b["buy_back_vol"] * args["community_pool_coef"]
                 b["cex_profit"] = 0  # we do not tax buybacks yet, see git issue
                 b["chain_profit"] = 0  # we do not tax buybacks yet, see git issue
-
             trade_exec_info.extend(buy_back_trades)
 
     gc.enable()

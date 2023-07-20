@@ -764,7 +764,10 @@ create_cex_profit_figure = register("create_tax_profit_figure", "total_cex_profi
 create_chain_profit_figure = register(
     "create_chain_profit_figure", "total_chain_profit"
 )
-create_buy_back_figure = register("create_buy_back_figure", "total_buy_back_vol")
+create_total_buy_back_figure = register(
+    "create_total_buy_back_figure", "total_buy_back_vol"
+)
+create_buy_back_figure = register("create_buy_back_figure", "buy_back_vol")
 create_swap_pool_figure = register("create_swap_pool_figure", "total_swap_pool")
 create_staking_pool_figure = register(
     "create_staking_pool_figure", "total_staking_pool"
@@ -773,6 +776,7 @@ create_oracle_pool_figure = register("create_oracle_pool_figure", "total_oracle_
 create_community_pool_figure = register(
     "create_community_pool_figure", "total_community_pool"
 )
+create_peg_figure = register("create_peg_figure", "peg")
 
 
 def create_simulation_gridplot(mkt: object, simul: dict) -> gridplot:
@@ -825,7 +829,7 @@ def create_simulation_gridplot(mkt: object, simul: dict) -> gridplot:
                 [
                     create_cex_profit_figure(df, x_axis_type="datetime"),
                     create_chain_profit_figure(df, x_axis_type="datetime"),
-                    create_buy_back_figure(df, x_axis_type="datetime"),
+                    create_total_buy_back_figure(df, x_axis_type="datetime"),
                 ],
                 [
                     create_swap_pool_figure(df, x_axis_type="datetime"),
@@ -834,6 +838,8 @@ def create_simulation_gridplot(mkt: object, simul: dict) -> gridplot:
                 ],
                 [
                     create_community_pool_figure(df, x_axis_type="datetime"),
+                    create_peg_figure(df, x_axis_type="datetime"),
+                    create_buy_back_figure(df, x_axis_type="datetime"),
                 ],
             ]
         )
@@ -856,7 +862,7 @@ def new_simulation_figure(mkt: MarketPair, simul: dict) -> layout:
     """
     df_sim = simul["breakdown"]
     sim_name = simul["sim_name"] if "sim_name" in simul else ""
-    title_text = f"{mkt.ticker} Simulation < i > {sim_name} < /i > <br/> between \
+    title_text = f"{mkt.ticker} Simulation <i> {sim_name} </i> <br/> between \
         {df_sim.index.min()} and {df_sim.index.max()}"
     return layout(
         [

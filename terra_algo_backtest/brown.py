@@ -51,7 +51,7 @@ def drifted_brownian_motion(mu, sigma, N, T, h, niceConnect=False):
         if start > 0 and niceConnect:
             X[start:end] -= X[start] - X[start - 1]
 
-    return X[0 : len(X) - 1]
+    return X[0: len(X) - 1]
 
 
 def runSamples(
@@ -146,7 +146,9 @@ def runSamples(
         pltShowWaitKey()
 
 
-def simulationSamples(seed=1420, doPlot=False, steps=365 * 24) -> dict:
+def simulationSamples(
+    seed=1420, doPlot=False, steps=365 * 24, timeframe=60 * 60 * 4
+) -> dict:
     """
     list of market model simulations to run against peg
     TODO: add and describe the test cases
@@ -162,7 +164,7 @@ def simulationSamples(seed=1420, doPlot=False, steps=365 * 24) -> dict:
         plt.plot(
             np.linspace(0, X.size, X.size), X, "g", label="drifted big dump, steady"
         )
-    prices["drifted big dump, steady"] = X
+    prices["drifted big dump, steady"] = {"data": X, "timeframe": timeframe}
 
     X = drifted_brownian_motion([-10, 10, -10, 10, 100], 1, steps, 1, 4, True)
     X = X - np.min(X) + 0.1
@@ -170,20 +172,19 @@ def simulationSamples(seed=1420, doPlot=False, steps=365 * 24) -> dict:
         plt.plot(
             np.linspace(0, X.size, X.size), X, "r", label="drifted steady, big pump"
         )
-    prices["drifted steady, big pump"] = X
+    prices["drifted steady, big pump"] = {"data": X, "timeframe": timeframe}
 
-    X, epsilon = brownian_motion(steps, 1, 4)
+    X, epsilon = brownian_motion(steps, 1, 2)
     X = X - np.min(X) + 0.1
     if doPlot:
         plt.plot(np.linspace(0, X.size, X.size), X, "y", label="steady brownian")
-    prices["steady brownian"] = X
+    prices["steady brownian"] = {"data": X, "timeframe": timeframe}
 
-    X, epsilon = brownian_motion(steps, 1, 8)
+    X, epsilon = brownian_motion(steps, 1, 2)
     X = X - np.min(X) + 0.1
     if doPlot:
         plt.plot(np.linspace(0, X.size, X.size), X, "b", label="wild brownian")
-    prices["wild brownian"] = X
-
+    prices["wild brownian"] = {"data": X, "timeframe": timeframe}
     if doPlot:
         plt.legend()
         plt.title("Repeg test scenarios")
