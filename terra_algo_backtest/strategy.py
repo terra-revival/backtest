@@ -59,11 +59,16 @@ def calc_taxes(exec_price: float, volume: float, args: dict) -> Tuple[float, flo
     if exec_price < args["soft_peg_price"] or (
         args["soft_peg_price"] == 1 and exec_price > 1
     ):
-        T = abs(exec_price - args["soft_peg_price"]) * (1 - args["arbitrage_coef"])
+        # until we are at peg = 1, we tax the whole difference
+        # at peg = 1, we allow arbitrage
+        T = abs((exec_price - args["soft_peg_price"]) * (1 -
+                args["arbitrage_coef"]) if args["soft_peg_price"] == 1 else 1)
         volume = abs(volume if volume > 0 else volume * exec_price)
-        return T * args["cex_tax_coef"] * abs(volume), T * (
-            1 - args["cex_tax_coef"]
-        ) * abs(volume)
+        # we multiply by 2, so we get to 100% tax at a 50% price difference and stick to 100% max
+        tax_percentage = 2 * T / args["soft_peg_price"] if 2 * \
+            T / args["soft_peg_price"] < 1 else 1
+        tax = tax_percentage * abs(volume)
+        return round(tax * args["cex_tax_coef"], 5), round(tax * (1-args["cex_tax_coef"]), 5)
     else:
         return 0, 0
 
@@ -140,21 +145,6 @@ def div_protocol(
 
     """
     trade_exec_info = []
-
-    # do arbitrage if possible. TODO, change the calc_arb to include possible
-    # taxing so it is maybe not profitable anymore?
-    # commented out the arbitrage as we found it was obsolete!
-    """quantity, pnl = calc_arb_trade(mkt)
-    if pnl > 0:  # only execute if profitable
-        arb_trade = execute_trade(mkt, dt, quantity, pnl)
-        # tax the arb trade
-        cex_profit, chain_profit = calc_taxes(arb_trade["price"], quantity, args)
-        arb_trade["cex_profit"] = cex_profit
-        arb_trade["chain_profit"] = chain_profit
-        arb_trade["buy_back_vol"] = 0
-        arb_trade["arb_trade"] = True
-        arb_trade['peg'] = args["soft_peg_price"]
-        trade_exec_info.append(arb_trade)"""
 
     # do the trade, we skip execute_trade, cause we have already TradeOrder
     mid_price = mkt.mid_price

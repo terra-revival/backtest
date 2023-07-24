@@ -14,6 +14,9 @@ from terra_algo_backtest.market import (
     TradeOrder,
     new_market,
 )
+from terra_algo_backtest.brown import (simulationSamples)
+from terra_algo_backtest.strategy import (calc_taxes)
+
 from terra_algo_backtest.simulation import (
     create_buy_sell_orders,
     get_binance_trade_histo_for_pair,
@@ -369,3 +372,34 @@ def test_simulation():
     df = df.loc["2022-11-01 00:10:00":"2022-11-02 00:10:59"]
     sim_res_1, sim_res_2, df_debug = swap_simulation(mkt, df, 0.01, 0.5, True)
     print(df_debug)
+
+
+def test_simulationSamples():
+    functions = simulationSamples(1420, False, 365, 24*60*60)
+    assert type(functions) == dict
+    for sim in functions:
+        assert 'data' in functions[sim]
+        assert 'timeframe' in functions[sim]
+        assert functions[sim]['timeframe'] == 24*60*60
+        assert len(functions[sim]['data']) == 365 + 1
+
+
+def test_calc_taxes():
+    tests = [
+        {"args": {"soft_peg_price": 0.1, "arbitrage_coef": 0, "cex_tax_coef": 0},
+         "price": 0.1, "volume": 1000, "output": [0, 0]},
+        {"args": {"soft_peg_price": 0.2, "arbitrage_coef": 0, "cex_tax_coef": 0.5},
+            "price": 0.1, "volume": 1000, "output": [500, 500]},
+        {"args": {"soft_peg_price": 0.2, "arbitrage_coef": 0, "cex_tax_coef": 0.4},
+            "price": 0.04, "volume": 1000, "output": [400, 600]},
+        {"args": {"soft_peg_price": 0.2, "arbitrage_coef": 0, "cex_tax_coef": 0.5},
+            "price": 0.3, "volume": 1000, "output": [0, 0]},
+        {"args": {"soft_peg_price": 1, "arbitrage_coef": 0, "cex_tax_coef": 0.4},
+            "price": 1.1, "volume": 1000, "output": [80, 120]},
+        {"args": {"soft_peg_price": 1, "arbitrage_coef": 0.2, "cex_tax_coef": 0.5},
+            "price": 0.8, "volume": 1000, "output": [160, 160]},
+    ]
+    for test in tests:
+        cex, chain = calc_taxes(test["price"], test["volume"], test["args"])
+        assert cex == test["output"][0]
+        assert chain == test["output"][1]

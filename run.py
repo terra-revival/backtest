@@ -45,8 +45,8 @@ sims["kraken_ustc/usdt_m1"] = {"data": df_ustc["close"], "timeframe": 60}
 div_protocol_args = {
     "soft_peg_price": ust_start_price,  # start right at the peg price, seems a smart decision
     # after we reach final peg 1$, this ratio of tax is left for arb traders to keep. 0 = we tax 100% of divergence
-    "arbitrage_coef": 0.2,
-    "cex_tax_coef": 0.001,  # ratio of how much tax CEX gets
+    "arbitrage_coef": 0.05,
+    "cex_tax_coef": 0.5,  # ratio of how much tax CEX gets
     # not used yet, we are not clear if to buyback with all the tax or keep base token also. 1 = spend all base tokens
     "buy_backs_coef": 1,
     "timeframe": 3600
@@ -82,7 +82,7 @@ for sim in sims:
 
     use_args = copy.deepcopy(div_protocol_args)
     simul = peg_simulation(
-        mkt, sims[sim], div_protocol, use_args, avg_price_peg_increase
+        mkt, sims[sim], div_protocol, use_args, time_peg_increase
     )
     simul["sim_name"] = sim
     # display results

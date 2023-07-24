@@ -147,7 +147,7 @@ def runSamples(
 
 
 def simulationSamples(
-    seed=1420, doPlot=False, steps=365 * 24, timeframe=60 * 60 * 4
+    seed=1420, doPlot=False, steps=365 * 24, timeframe=60 * 60
 ) -> dict:
     """
     list of market model simulations to run against peg
