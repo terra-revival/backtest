@@ -1,88 +1,52 @@
-# swap_simulation function updated with additional arguments for strategy
-from typing import Callable, List
+from abc import ABC, abstractmethod
+from typing import List
 
-from .market import MarketPair, TradeOrder
-from .swap import calc_arb_trade, constant_product_swap
+import pandas as pd
 
-
-def get_strategy(strategy: str) -> Callable[[dict, MarketPair], List[dict]]:
-    """Returns the strategy functon.
-
-    Args:
-        strategy (str): the strategy name.
-
-    Returns:
-        Callable[[dict, MarketPair], List[dict]]: strategy function.
-
-    """
-    if strategy == "uni_v2":
-        return uni_v2
-    if strategy == "div_protocol":
-        return div_protocol
-    raise Exception(f"Strategy {strategy} not found")
+from .exec_engine import ConstantProductEngine, calc_arb_trade, calc_arb_trade_pnl
+from .market import TradeOrder
 
 
-def uni_v2(row: dict, mkt: MarketPair) -> List[dict]:
-    """UNI v2 LP strategy.
-
-    Args:
-        row (dict): The trade data.
-        mkt (MarketPair): The market pair for which swaps are to be simulated.
-
-    Returns:
-        dict: trade_exec_info.
-
-    """
-
-    trade_exec_info = []
-    quantity, pnl = calc_arb_trade(mkt)
-    if pnl > 0:  # only execute if profitable
-        trade_exec_info.append(execute_trade(mkt, row["trade_date"], quantity, pnl))
-    if row["quantity"] != 0:
-        trade_exec_info.append(execute_trade(mkt, row["trade_date"], row["quantity"]))
-    return trade_exec_info
+class Strategy(ABC):
+    @abstractmethod
+    def execute(self, current_row: dict, sim_data: pd.DataFrame) -> List[dict]:
+        pass
 
 
-def div_protocol(row: dict, mkt: MarketPair) -> List[dict]:
-    """UNI v2 LP strategy with divergence protocol.
+class ArbStrategy(Strategy):
+    def __init__(self, cp_amm: ConstantProductEngine):
+        self.cp_amm = cp_amm
 
-    Args:
-        row (dict): The trade data.
-        mkt (MarketPair): The market pair for which swaps are to be simulated.
+    def execute(self, current_row: dict, sim_data: pd.DataFrame) -> List[dict]:
+        trade_exec_info = []
+        self.cp_amm.update_mkt_price(current_row["price"])
+        arb_trade, exec_price = calc_arb_trade(self.cp_amm)
+        if arb_trade:
+            arb_trade_pnl = calc_arb_trade_pnl(
+                arb_trade, exec_price, current_row["price"], fees=0
+            )
+            if arb_trade_pnl > 0:
+                exec_info = self.cp_amm.execute_trade(current_row, arb_trade)
+                exec_info["arb_profit"] = arb_trade_pnl
+                trade_exec_info.append(exec_info)
+        return trade_exec_info
 
-    Returns:
-        dict: trade_exec_info.
 
-    """
-    trade_exec_info = uni_v2(row, mkt)
-    # divergence tax if applicable
-    return trade_exec_info
+class SimpleUniV2Strategy(Strategy):
+    def __init__(self, cp_amm: ConstantProductEngine, arb_enabled: bool = True):
+        self.cp_amm = cp_amm
+        self.arb_strategy = ArbStrategy(cp_amm) if arb_enabled else None
 
-
-def execute_trade(
-    mkt: MarketPair, trade_date: object, volume: float, arb_profit: float = 0
-) -> dict:
-    """Executes a trade for a given market pair and volume.
-
-    Args:
-        mkt (MarketPair): The market pair for which the trade is to be executed.
-        trade_date (object): The date of the trade.
-        volume (object): The volume of the trade.
-        arb_profit (float, optional): The profit from arbitrage. Defaults to 0.
-
-    Returns:
-        dict: A dictionary with information about the executed trade.
-
-    """
-    mid_price = mkt.mid_price
-    trade = TradeOrder(mkt.ticker, volume, mkt.swap_fee)
-    _, exec_price = constant_product_swap(mkt, trade)
-    # _, exec_price = mock_constant_product_swap(mkt, trade)
-    return {
-        "trade_date": trade_date,
-        "side": trade.direction,
-        "arb_profit": arb_profit,
-        "price": exec_price,
-        "price_impact": (mid_price - exec_price) / mid_price,
-        **mkt.describe(),
-    }
+    def execute(self, current_row: dict, sim_data: pd.DataFrame) -> List[dict]:
+        trade_exec_info = []
+        self.cp_amm.update_mkt_price(current_row["price"])
+        if self.arb_strategy:
+            trade_exec_info.extend(self.arb_strategy.execute(current_row, sim_data))
+        if current_row["quantity"] != 0:
+            trade_order = TradeOrder(
+                self.cp_amm.mkt.ticker,
+                current_row["quantity"],
+                self.cp_amm.mkt.swap_fee,
+            )
+            trade_exec_info.append(self.cp_amm.execute_trade(current_row, trade_order))
+        return trade_exec_info
