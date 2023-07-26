@@ -12,10 +12,34 @@ terra\_algo\_backtest.binance\_loader module
    :undoc-members:
    :show-inheritance:
 
+terra\_algo\_backtest.brown module
+----------------------------------
+
+.. automodule:: terra_algo_backtest.brown
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+terra\_algo\_backtest.exec\_engine module
+-----------------------------------------
+
+.. automodule:: terra_algo_backtest.exec_engine
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 terra\_algo\_backtest.gbm\_histo module
 ---------------------------------------
 
 .. automodule:: terra_algo_backtest.gbm_histo
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+terra\_algo\_backtest.helpers module
+------------------------------------
+
+.. automodule:: terra_algo_backtest.helpers
    :members:
    :undoc-members:
    :show-inheritance:
