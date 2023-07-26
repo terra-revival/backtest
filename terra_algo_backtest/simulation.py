@@ -1,10 +1,9 @@
 import gc
-from typing import Callable, List
 
 import numpy as np
 import pandas as pd
 
-from .market import MarketPair, with_mkt_price
+from .strategy import Strategy
 from .utils import timer_func
 
 
@@ -35,16 +34,14 @@ def resample_df(df: pd.DataFrame, resample_freq: str) -> pd.DataFrame:
 
 @timer_func
 def swap_simulation(
-    mkt: MarketPair,
     trade_df: pd.DataFrame,
-    strategy: Callable[[dict, MarketPair], List[dict]],
+    strategy: Strategy,
 ) -> dict:
     gc.disable()
     trade_exec_info = []
     trades = trade_df.reset_index().to_dict(orient="records")
     for row in trades:
-        mkt = with_mkt_price(mkt, row["price"])
-        trade_exec_info.extend(strategy(row, mkt))
+        trade_exec_info.extend(strategy.execute(row, trade_df))
     gc.enable()
     return sim_results(trade_exec_info)
 
@@ -63,6 +60,7 @@ def sim_results(sim_outputs: list) -> dict:
     if len(sim_outputs) == 0:
         return {}
     df_sim = pd.DataFrame(sim_outputs).set_index("trade_date")
+    df_sim.fillna(0, inplace=True)
     trade_data = df_sim[
         ["total_volume_base", "total_volume_quote", "total_fees_paid_quote"]
     ]

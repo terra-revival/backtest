@@ -167,6 +167,8 @@ class MarketPair:
     @property
     def avg_price(self) -> float:
         """The average execution price for all the trades."""
+        if self.volume_base == 0:
+            return 0
         return -self.volume_quote / self.volume_base
 
     @property
