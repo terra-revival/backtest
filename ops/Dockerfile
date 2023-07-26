@@ -1,5 +1,27 @@
 ARG DEPS_IMAGE=ustc_invalid_deps_image
 
+# -----------------------------------------------------------------------------
+
+FROM alpine:3.18.2 AS prerun.env
+
+WORKDIR '/app/'
+
+RUN apk update
+RUN apk add --no-cache \
+  bash \
+  git \
+  openssl
+
+RUN addgroup --system 'ustc-untrusted'
+RUN adduser --ingroup 'ustc-untrusted' --system 'ustc-prerun'
+RUN chown -R 'ustc-prerun:ustc-untrusted' '/app/'
+
+USER 'ustc-prerun'
+
+RUN git config --global --add safe.directory '/app'
+
+# -----------------------------------------------------------------------------
+
 FROM python:3.11.4-alpine3.18 AS python.env
 
 WORKDIR '/app/'

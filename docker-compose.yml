@@ -1,6 +1,20 @@
 version: '3.8'
 
 services:
+  prerun:
+    image: 'terra_algo_backtest-prerun:latest'
+    container_name: 'terra_algo_backtest-prerun-latest'
+    build:
+      dockerfile: './ops/Dockerfile'
+      target: prerun.env
+      context: '.'
+    volumes:
+      - .:/app/
+    entrypoint: [
+      "bash",
+      "-c",
+      "source '/app/ops/scripts.sh' && ops::shasums::refresh_docker_compose_env_tags"
+    ]
   env:
     image: 'terra_algo_backtest-env:${ENV_TAG}'
     container_name: 'terra_algo_backtest-env-${ENV_TAG}'
@@ -8,6 +22,8 @@ services:
       dockerfile: './ops/Dockerfile'
       target: 'python.env'
       context: '.'
+    depends_on:
+      - prerun
   deps:
     image: 'terra_algo_backtest-deps:${DEPS_TAG}'
     container_name: 'terra_algo_backtest-deps-${DEPS_TAG}'

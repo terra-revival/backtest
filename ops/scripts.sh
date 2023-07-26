@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 set -f -o pipefail
 
-script_dir="$( dirname -- "$( readlink -f -- "${0}"; )"; )"
+source_dir="$( dirname -- "$( readlink -f -- "${0}"; )"; )"
 
 # Usage:
 # ops::shasums::gen_from_file 'README.md'
@@ -30,23 +30,22 @@ ops::shasums::gen_from_file () {
 }
 
 ops::shasums::gen_from_current_git_commit_hash () {
-  local -r project_dir="${script_dir}/.."
-  local -r git_commit_id="$(git -C "${project_dir}" rev-parse HEAD)"
+  local -r git_commit_id="$(git -C "${source_dir}" rev-parse HEAD)"
   echo "${git_commit_id:0:8}"
 }
 
 ops::shasums::refresh_docker_compose_env_tags () {
-  local -r env_file="${script_dir}/Dockerfile"
+  local -r env_file="${source_dir}/ops/Dockerfile"
   local -r env_hash="$(ops::shasums::gen_from_file "${env_file}")"
 
-  local -r deps_file="${script_dir}/../requirements_dev.txt"
+  local -r deps_file="${source_dir}/requirements_dev.txt"
   local -r deps_hash="$(ops::shasums::gen_from_file "${deps_file}")"
 
   local -r build_hash="$(ops::shasums::gen_from_current_git_commit_hash)"
 
-  local -r compose_env_file="${script_dir}/../.env"
+  local -r compose_env_file="${source_dir}/.env"
 
-  echo "script_dir: ${script_dir}"
+  echo "source_dir: ${source_dir}"
 
   echo "env_hash: ${env_hash}"
   echo "deps_hash: ${deps_hash}"

@@ -11,9 +11,9 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    "bokeh==2.4.3",
+    "bokeh==3.2.0",
     "loguru==0.6.0",
-    "numpy==1.23.1",
+    "numpy==1.25.1",
     "terra-sdk==2.0.6",
     "terra-proto==1.0.1",
 ]
