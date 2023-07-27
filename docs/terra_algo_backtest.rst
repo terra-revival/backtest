@@ -12,6 +12,14 @@ terra\_algo\_backtest.binance\_loader module
    :undoc-members:
    :show-inheritance:
 
+terra\_algo\_backtest.bokeh\_utils module
+-----------------------------------------
+
+.. automodule:: terra_algo_backtest.bokeh_utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 terra\_algo\_backtest.brown module
 ----------------------------------
 
