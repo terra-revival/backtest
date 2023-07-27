@@ -38,10 +38,10 @@ def drifted_brownian_motion(mu, sigma, N, T, h, niceConnect=False):
     # the normalizing constant
     dt = 1.0 * T / N
     # generate the time steps
-    time_steps = np.linspace(0.0, N * dt, N + 1)
+    time_steps = np.linspace(0.0, N * dt, N)
     step_size = math.floor(N / len(mu))
-    X = np.linspace(0.0, N * dt, N + 1)
-    for muIndex in range(0, len(mu)):
+    X = np.linspace(0.0, N * dt, N)
+    for muIndex in range(0, len(mu) - 1):
         # get indexes inside time series
         start = step_size * muIndex
         end = step_size * (muIndex + 1) if muIndex < len(mu) else None
@@ -51,7 +51,7 @@ def drifted_brownian_motion(mu, sigma, N, T, h, niceConnect=False):
         if start > 0 and niceConnect:
             X[start:end] -= X[start] - X[start - 1]
 
-    return X[0: len(X) - 1]
+    return X[0 : len(X)]
 
 
 def runSamples(
@@ -175,12 +175,14 @@ def simulationSamples(
     prices["drifted steady, big pump"] = {"data": X, "timeframe": timeframe}
 
     X, epsilon = brownian_motion(steps, 1, 2)
+    X = X[0:steps]
     X = X - np.min(X) + 0.1
     if doPlot:
         plt.plot(np.linspace(0, X.size, X.size), X, "y", label="steady brownian")
     prices["steady brownian"] = {"data": X, "timeframe": timeframe}
 
     X, epsilon = brownian_motion(steps, 1, 2)
+    X = X[0:steps]
     X = X - np.min(X) + 0.1
     if doPlot:
         plt.plot(np.linspace(0, X.size, X.size), X, "b", label="wild brownian")

@@ -1,12 +1,13 @@
 import gc
+from datetime import timedelta
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
-from typing import List, Callable
-from datetime import datetime, timedelta
-from .strategy import DivStrategy
+
+from .market import TradeOrder
+from .strategy import DivStrategy, Strategy
 from .utils import timer_func
-from .market import MarketPair, TradeOrder, with_mkt_price
 
 
 def resample_df(df: pd.DataFrame, resample_freq: str) -> pd.DataFrame:
@@ -116,13 +117,24 @@ def trade_summary(df_trades: pd.DataFrame) -> pd.DataFrame:
 @timer_func
 def peg_simulation(
     sim_function: dict,
-    # strategy: Callable[[TradeOrder, MarketPair, dict, datetime, bool], List[dict]],
     strategy: DivStrategy,
     args: dict,
     softpeg_strategy: str | None,
 ) -> dict:
+    """_summary_
+
+    Args:
+        sim_function (dict): price function to simulate, array of floats
+        strategy (DivStrategy): simulation strategy to be used
+        args (dict): settings for the divergence strategy
+        softpeg_strategy (str | None): 'time' or 'avg' accepted for softpeg raise
+
+    Returns:
+        dict: list of trades of the simulation with all info
+
+    """
     gc.disable()
-    trade_exec_info = []
+    trade_exec_info = []  # type: List[Dict]
 
     # store the starting soft peg price, as we possibly change it via softpeg_strategy
     args["soft_peg_start"] = args["soft_peg_price"]
@@ -130,33 +142,33 @@ def peg_simulation(
     timeframe = sim_function["timeframe"]
     for idx in range(0, len(function) - 2):
         # check if we raise the softpeg
-        if softpeg_strategy == 'avg':
+        if softpeg_strategy == "avg":
             strategy.avg_price_peg_increase(function, idx, trade_exec_info)
-        elif softpeg_strategy == 'time':
+        elif softpeg_strategy == "time":
             strategy.time_peg_increase(function, idx)
 
         rel_gain = (function[idx + 1] - function[idx]) / function[idx]
         # ignore bigger than 50% drops, as noone would trade this cause tax is 100%
-        if rel_gain < 0.5:
+        if (rel_gain > 1 and rel_gain - 1 >= 0.5) or rel_gain >= 0.5:
             continue
-        mkt = with_mkt_price(strategy.cp_amm.mkt,
-                             strategy.cp_amm.mkt.mkt_price * (1 + rel_gain))
+        strategy.cp_amm.update_mkt_price(strategy.cp_amm.mkt.mkt_price * (1 + rel_gain))
         dx, dy = strategy.cp_amm.mkt.get_delta_reserves()
         if dy == 0 or dx == 0:
             continue
         if dx > 0:
             # dx = volume in USDT
-            trade = TradeOrder(strategy.cp_amm.mkt.ticker, dx,
-                               strategy.cp_amm.mkt.swap_fee)
+            trade = TradeOrder(
+                strategy.cp_amm.mkt.ticker, dx, strategy.cp_amm.mkt.swap_fee
+            )
         else:
             # dy = volume in USTC
-            trade = TradeOrder(strategy.cp_amm.mkt.ticker, dy,
-                               strategy.cp_amm.mkt.swap_fee)
+            trade = TradeOrder(
+                strategy.cp_amm.mkt.ticker, dy, strategy.cp_amm.mkt.swap_fee
+            )
 
-        trades = strategy.execute(
+        trades = strategy.execute_div(
+            strategy.cp_amm.mkt.mkt_price * (1 + rel_gain),
             trade,
-            mkt,
-            args,
             args["start_date"] + timedelta(seconds=timeframe * idx),
             False,
         )
@@ -173,13 +185,15 @@ def peg_simulation(
             t["buy_back_vol"] = 0
 
         # if we have profits, do buyback and distribute USTC to pools
-        if sum_chain_profit > 0:
-            buy_back = TradeOrder(strategy.cp_amm.mkt.ticker,
-                                  sum_chain_profit, strategy.cp_amm.mkt.swap_fee)
-            buy_back_trades = strategy(
+        if sum_chain_profit > 0 and args["do_buybacks"]:
+            buy_back = TradeOrder(
+                strategy.cp_amm.mkt.ticker,
+                sum_chain_profit,
+                strategy.cp_amm.mkt.swap_fee,
+            )
+            buy_back_trades = strategy.execute_div(
+                strategy.cp_amm.mkt.mkt_price,
                 buy_back,
-                strategy.cp_amm.mkt,
-                args,
                 args["start_date"] + timedelta(seconds=timeframe * idx),
                 True,
             )

@@ -777,6 +777,14 @@ create_community_pool_figure = register(
     "create_community_pool_figure", "total_community_pool"
 )
 create_peg_figure = register("create_peg_figure", "peg")
+create_nobuyback_figure = register("create_nobuyback_figure", "mkt_price_nbb")
+
+"""create_price_buyback_peg_figure = register(
+    new_function_name="create_pnl_breakdown_figure",
+    columns=["peg", "mkt_price", "mkt_price_nbb"],
+    colors=["navy", "crimson", "green"],
+    line_dash=["solid", "dashed", "dashed"],
+)"""
 
 
 def create_simulation_gridplot(mkt: object, simul: dict) -> gridplot:
@@ -840,6 +848,10 @@ def create_simulation_gridplot(mkt: object, simul: dict) -> gridplot:
                     create_community_pool_figure(df, x_axis_type="datetime"),
                     create_peg_figure(df, x_axis_type="datetime"),
                     create_buy_back_figure(df, x_axis_type="datetime"),
+                ],
+                [
+                    create_nobuyback_figure(df, x_axis_type="datetime"),
+                    # create_price_buyback_peg_figure(df, x_axis_type="datetime")
                 ],
             ]
         )
