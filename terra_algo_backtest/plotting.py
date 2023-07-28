@@ -1,18 +1,21 @@
-import sys
 from copy import deepcopy
-from functools import partial, update_wrapper
-from typing import Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-import scipy
 from bokeh.io import show
-from bokeh.layouts import gridplot, layout
-from bokeh.models import ColumnDataSource, Div, HoverTool, NumeralTickFormatter
+from bokeh.layouts import grid, layout
+from bokeh.models import ColumnDataSource, Div, HoverTool
 from bokeh.plotting import Figure, figure
 from bokeh.transform import dodge
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
+from .bokeh_utils import (
+    create_exec_price_figure,
+    create_il_control_figure,
+    create_pnl_breakdown_figure,
+    create_price_figure,
+    create_price_impact_figure,
+)
 from .market import MarketPair, Pool, TradeOrder, split_ticker
 from .swap import (
     MidPrice,
@@ -578,237 +581,74 @@ def new_df_div(df, plot_width=900, plot_height=600):
     # return Div(text=format_df(df),width=plot_width, height=plot_height)
 
 
-def create_line_data(df_index: pd.Index, df_col: pd.Series) -> Dict[str, List]:
-    """Generates line data from a DataFrame column.
-
-    Args:
-        df_index (pd.Index): The DataFrame Index.
-        df_col (pd.Series): The DataFrame column.
-
-    Returns:
-        Dict[str, List]: A dictionary with line data.
-
-    """
-    data = {"x": df_index, "y": df_col}
-    return data
-
-
-def create_distrib_data(
-    df_col: pd.Series, color: Optional[str] = "navy", line_dash: Optional[str] = "solid"
-) -> Dict[str, List]:
-    """Generates distribution data from a DataFrame column.
-
-    Args:
-        df_col (pd.Series): The DataFrame column.
-        color (str, optional): The color of the line.
-        line_dash (str, optional): The style of the line.
-
-    Returns:
-        Dict[str, List]: A dictionary with distribution data.
-
-    """
-    mu, std = df_col.mean(), df_col.std()
-    x = np.linspace(mu - 3 * std, mu + 3 * std, 100)
-    distrib = scipy.stats.norm.pdf(x, loc=mu, scale=std)
-    distrib_normalized = distrib / np.max(distrib)
-    data = {
-        "x": x,
-        "y": distrib_normalized,
-        "color": [color] * len(x),
-        "line_dash": [line_dash] * len(x),
-    }
-    return data
-
-
-def create_fitted_data(
-    df_pivot_col: pd.Series, df_col_agg: pd.Series
-) -> Dict[str, List]:
-    """Generates fitted data from DataFrame columns.
-
-    Args:
-        df_pivot_col (pd.Series): The DataFrame pivot column.
-        df_col_agg (pd.Series): The DataFrame aggregate column.
-
-    Returns:
-        Dict[str, List]: A dictionary with fitted data.
-
-    """
-    coefficients = np.polyfit(df_pivot_col, df_col_agg, 2)
-    fitted_curve = np.poly1d(coefficients)
-    x_range = np.linspace(df_pivot_col.min(), df_pivot_col.max(), 100)
-    return {"x": x_range.tolist(), "y": fitted_curve(x_range).tolist()}
-
-
-def create_data_source(
-    df: pd.DataFrame,
-    column: str,
-    line_type: str,
-    idx_column: Optional[str] = None,
-) -> Dict[str, List]:
-    """Creates a data source based on line type.
-
-    Args:
-        df (pd.DataFrame): The DataFrame.
-        column (str): The DataFrame column to be processed.
-        line_type (str): The line type, choose from 'line', 'distribution', or 'fitted'.
-        idx_column (str, optional): The index column of the DataFrame.
-
-    Returns:
-        Dict[str, List]: A dictionary with the processed data.
-
-    """
-    if line_type == "line":
-        return create_line_data(df.index, df[column])
-    elif line_type == "distribution":
-        return create_distrib_data(df[column])
-    elif line_type == "fitted":
-        if idx_column is None:
-            raise ValueError("idx_column must be specified for fitted line type.")
-        df_group = df.groupby(idx_column)[column].mean().reset_index()
-        return create_fitted_data(df_group[idx_column], df_group[column])
-    else:
-        raise ValueError(
-            "Invalid line type. Choose from 'line', 'distribution', or 'fitted'"
-        )
-
-
-def create_bokeh_figure(
-    data_sets: List[dict], y_percent_format: Optional[bool] = False, **kwargs
-) -> figure:
-    """Creates a Bokeh figure.
-
-    Args:
-        data_sets (List[dict]): A list of data sets for the figure.
-        y_percent_format (bool, optional): If True, formats the y-axis as percentages.
-
-    Returns:
-        figure: A Bokeh figure.
-
-    """
-    p = figure(**kwargs)
-    if y_percent_format:
-        p.yaxis.formatter = NumeralTickFormatter(format="0.00%")
-
-    for data in data_sets:
-        source = ColumnDataSource(data)
-        line_figure = p.line(
-            x="x",
-            y="y",
-            line_width=1,
-            alpha=0.6,
-            color="navy",
-            line_dash="solid",
-            source=source,
-        )
-        hover = HoverTool(
-            tooltips=[("x", "@x{%F}"), ("y", "@y{0.00}")],
-            formatters={"@x": "datetime"},
-            renderers=[line_figure],
-        )
-        p.add_tools(hover)
-    return p
-
-
-def create_line_chart(
-    df: pd.DataFrame,
-    column: str,
-    line_type: str = "line",
-    idx_column: Optional[str] = None,
-    **kwargs,
-) -> figure:
-    """Creates a line chart from DataFrame and column.
-
-    Args:
-        df (pd.DataFrame): The DataFrame.
-        column (str): The DataFrame column to be processed.
-        line_type (str): The line type, choose from 'line', 'distribution', or 'fitted'.
-        idx_column (str, optional): The index column of the DataFrame.
-
-    Returns:
-        figure: A Bokeh figure object with the line chart.
-
-    """
-    data = create_data_source(df, column, line_type, idx_column=idx_column)
-    p = create_bokeh_figure([data], title=column, **kwargs)
-    return p
-
-
-def register(new_function_name: str, column: str) -> Callable:
-    """Registers a new function for a specific column.
-
-    Args:
-        new_function_name (str): The name of the new function.
-        column (str): The DataFrame column to be processed.
-
-    Returns:
-        Callable: The new function.
-
-    """
-    new_function = partial(create_line_chart, column=column)
-    new_function.__doc__ = f"{new_function_name} wrapper with column={column}."
-    update_wrapper(new_function, create_line_chart)
-    setattr(sys.modules[__name__], new_function_name, new_function)
-    return new_function
-
-
-# Register new functions
-create_mid_price_figure = register("create_mid_price_figure", "mid_price")
-create_mkt_price_figure = register("create_mkt_price_figure", "mkt_price")
-create_price_impact_figure = register("create_price_impact_figure", "price_impact")
-create_pnl_figure = register("create_pnl_figure", "roi")
-create_trade_pnl_pct_figure = register("create_trade_pnl_pct_figure", "trade_pnl_pct")
-create_fees_pnl_pct_figure = register("create_fees_pnl_pct_figure", "fees_pnl_pct")
-create_il_figure = register("create_il_figure", "impermanent_loss")
-
-
-def create_simulation_gridplot(mkt: object, simul: dict) -> gridplot:
-    """Creates a simulation grid plot.
-
-    Args:
-        mkt (object): The market object.
-        simul (dict): The simulation dictionary.
-
-    Returns:
-        gridplot: A Bokeh grid plot.
-
-    """
-    df = simul["breakdown"]
-    return gridplot(
+def create_simulation_gridplot(df: pd.DataFrame):
+    return [
         [
-            [
-                create_pnl_figure(df, x_axis_type="datetime"),
-                create_trade_pnl_pct_figure(df, x_axis_type="datetime"),
-                create_fees_pnl_pct_figure(df, x_axis_type="datetime"),
-            ],
-            [
-                create_price_impact_figure(df, x_axis_type="datetime"),
-                create_mid_price_figure(df, x_axis_type="datetime"),
-                create_mkt_price_figure(df, x_axis_type="datetime"),
-            ],
-            [
-                create_il_figure(df, idx_column="mkt_price_ratio", line_type="fitted"),
-                create_trade_pnl_pct_figure(
-                    df, idx_column="mkt_price_ratio", line_type="fitted"
-                ),
-                create_fees_pnl_pct_figure(
-                    df, idx_column="mkt_price_ratio", line_type="fitted"
-                ),
-            ],
-            [
-                create_pnl_figure(df, line_type="distribution", y_percent_format=True),
-                create_trade_pnl_pct_figure(
-                    df, line_type="distribution", y_percent_format=True
-                ),
-                create_fees_pnl_pct_figure(
-                    df, line_type="distribution", y_percent_format=True
-                ),
-            ],
+            create_pnl_breakdown_figure(
+                df,
+                title="PnL Breakdown",
+                x_axis_type="datetime",
+                y_percent_format=True,
+                toolbar_location=None,
+            ),
+            create_pnl_breakdown_figure(
+                df,
+                title="IL Breakdown",
+                idx_column="mkt_price_ratio",
+                line_type="fitted",
+                x_percent_format=True,
+                y_percent_format=True,
+                toolbar_location=None,
+            ),
         ],
-        sizing_mode="scale_both",
-    )
+        [
+            create_price_figure(
+                df,
+                title="Mid Vs Mkt price",
+                x_axis_type="datetime",
+                y_percent_format=False,
+                toolbar_location=None,
+            ),
+            create_price_impact_figure(
+                df,
+                title="Price Impact",
+                x_axis_type="datetime",
+                y_percent_format=True,
+                toolbar_location=None,
+            ),
+        ],
+        [
+            create_pnl_breakdown_figure(
+                df,
+                title="PnL Breakdown",
+                line_type="distribution",
+                x_percent_format=True,
+                y_percent_format=True,
+                toolbar_location=None,
+            ),
+            create_il_control_figure(
+                df,
+                title="IL theoric vs actual",
+                idx_column="mkt_price_ratio",
+                line_type="fitted",
+                x_percent_format=True,
+                y_percent_format=True,
+                x_desired_num_ticks=4,
+                toolbar_location=None,
+            ),
+            create_exec_price_figure(
+                df,
+                title="Exec Vs Mkt price",
+                line_type="distribution",
+                x_percent_format=False,
+                y_percent_format=True,
+                toolbar_location=None,
+            ),
+        ],
+    ]
 
 
-def new_simulation_figure(mkt: MarketPair, simul: dict) -> layout:
+def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout=None) -> layout:
     """Creates a new simulation figure.
 
     Args:
@@ -820,6 +660,8 @@ def new_simulation_figure(mkt: MarketPair, simul: dict) -> layout:
 
     """
     df_sim = simul["breakdown"]
+    if sim_layout is None:
+        sim_layout = create_simulation_gridplot(df_sim)
     title_text = (
         f"{mkt.ticker} Simulation between {df_sim.index.min()} and {df_sim.index.max()}"
     )
@@ -832,10 +674,12 @@ def new_simulation_figure(mkt: MarketPair, simul: dict) -> layout:
         ],
         [
             Div(text=format_df(mkt.assets())),
+        ],
+        [
             Div(text=format_df(mkt.perf())),
         ],
         [
-            create_simulation_gridplot(mkt, simul),
+            grid(sim_layout, sizing_mode="scale_width"),
         ],
         sizing_mode="scale_both",
     )
