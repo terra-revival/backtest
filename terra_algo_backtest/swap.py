@@ -157,7 +157,7 @@ def constant_product_swap(
         )
 
 
-def swap_price(x, y, dx) -> float:
+def swap_price(mkt: MarketPair, order: TradeOrder) -> Tuple[float, float]:
     """Computes the swap execution price for an order size given two pools with reserves
     x and y.
 
@@ -176,7 +176,12 @@ def swap_price(x, y, dx) -> float:
             Swap execution price
 
     """
-    return (x + dx) / y
+    dx = order.order_size
+    x, y = mkt.get_reserves(order.ticker)
+    dy = (y * dx) / (x + dx)
+    new_x, new_y = x + dx, y - dy
+    assert_cp_invariant(new_x, new_y, mkt.cp_invariant)
+    return dx / dy, new_x / new_y
 
 
 def constant_product_curve(
@@ -250,7 +255,7 @@ def price_impact_range(
     assert_cp_invariant(x_start, y_start, k, precision)
     assert_cp_invariant(x_end, y_end, k, precision)
     # swap execution price at start for dx amount of tokens A
-    exec_price = swap_price(x_start, y_start, dx)
+    exec_price, _ = swap_price(mkt, order)
     # (x, y) of the mid price equal to the execution price
     x_mid = sqrt(k * exec_price)
     y_mid = k / sqrt(k * exec_price)

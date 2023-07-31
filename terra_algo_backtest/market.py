@@ -341,10 +341,9 @@ class MarketPair:
             },
         )
 
-    def get_delta_reserves(self) -> Tuple[float, float]:
+    def get_delta_reserves(self, mkt_price: float) -> Tuple[float, float]:
         """The mid price of the trading pair."""
         mid_price = self.mid_price
-        mkt_price = self.mkt_price
         sqrt_k = np.sqrt(self.cp_invariant)
         dx = sqrt_k * (np.sqrt(mkt_price) - np.sqrt(mid_price))
         dy = sqrt_k * (np.sqrt(1 / mid_price) - np.sqrt(1 / mkt_price))

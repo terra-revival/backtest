@@ -47,7 +47,7 @@ def swap_simulation(
 
 
 @timer_func
-def sim_results(sim_outputs: list) -> dict:
+def sim_results(strategy: Strategy, sim_outputs: list) -> dict:
     """Processes simulation outputs to provide a structured result.
 
     Args:
@@ -69,11 +69,11 @@ def sim_results(sim_outputs: list) -> dict:
     ] = trade_data.diff().fillna(trade_data)
     df_sim["trade_pnl_pct"] = df_sim["trade_pnl"] / df_sim["hold_portfolio"]
     df_sim["fees_pnl_pct"] = df_sim["total_fees_paid_quote"] / df_sim["hold_portfolio"]
-    df_sim["total_arb_profit"] = df_sim["arb_profit"].cumsum()
+    #    df_sim["total_arb_profit"] = df_sim["arb_profit"].cumsum()
 
     return {
         "headline": trade_summary(df_sim),
-        "breakdown": df_sim,
+        "breakdown": strategy.agg_results(df_sim),
     }
 
 

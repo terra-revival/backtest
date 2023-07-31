@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Tuple
 
 from .market import MarketPair, TradeOrder
-from .swap import constant_product_swap
+from .swap import constant_product_swap, swap_price
 
 
 class ExecEngine(ABC):
@@ -34,10 +34,34 @@ class ConstantProductEngine(ExecEngine):
                 "trade_date": ctx["trade_date"],
                 "side": order.direction,
                 "price": exec_price,
-                "price_impact": (mid_price - exec_price) / mid_price,
+                "price_impact": (exec_price / mid_price) - 1,
                 "qty_received": qty_received,
                 **self.mkt.describe(),
             }
+        except AttributeError as e:
+            raise AttributeError(
+                "Invalid attribute in one of the input objects: " + str(e)
+            )
+        except KeyError as e:
+            raise KeyError("Missing key in context dictionary: " + str(e))
+
+    def get_exec_price(self, direction: str, size: float) -> Tuple[float, float]:
+        """Gets the execution price for a trade order.
+
+        Args:
+            ctx (dict): The context in which the trade is being executed.
+            order (TradeOrder): The trade order to execute.
+
+        Returns:
+            Tuple[float, float]: The execution price and the price impact.
+
+        """
+        try:
+            ticker = self.mkt.ticker if direction == "buy" else self.mkt.inverse_ticker
+            exec_price, mid_price = swap_price(
+                self.mkt, TradeOrder(ticker, size, self.mkt.swap_fee)
+            )
+            return exec_price, mid_price
         except AttributeError as e:
             raise AttributeError(
                 "Invalid attribute in one of the input objects: " + str(e)
@@ -64,7 +88,7 @@ def calc_arb_trade(
 ) -> Tuple[TradeOrder | None, float]:
     """Calculates the trade order that would be executed to arb the DEX against another
     venue."""
-    dx, dy = cp_amm.mkt.get_delta_reserves()
+    dx, dy = cp_amm.mkt.get_delta_reserves(cp_amm.mkt.mkt_price)
     if dy == 0 or dx == 0:
         return None, 0.0
 
