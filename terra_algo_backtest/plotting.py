@@ -9,7 +9,7 @@ import scipy
 from bokeh.io import show
 from bokeh.layouts import gridplot, layout
 from bokeh.models import ColumnDataSource, Div, HoverTool, NumeralTickFormatter
-from bokeh.plotting import Figure, figure
+from bokeh.plotting import figure, figure
 from bokeh.transform import dodge
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
@@ -29,7 +29,7 @@ def new_constant_product_figure(
     x_min: float | None = None,
     x_max: float | None = None,
     num: int | None = None,
-    bokeh_figure: Figure | None = None,
+    bokeh_figure: figure | None = None,
     plot_width=900,
     plot_height=600,
 ):
@@ -89,7 +89,7 @@ def new_price_impact_figure(
     x_max: float | None = None,
     num: int | None = None,
     precision: float | None = None,
-    bokeh_figure: Figure | None = None,
+    bokeh_figure: figure | None = None,
     plot_width=900,
     plot_height=600,
 ):
