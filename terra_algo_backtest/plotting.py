@@ -1,7 +1,6 @@
 from copy import deepcopy
 
 import numpy as np
-import pandas as pd
 from bokeh.io import show
 from bokeh.layouts import grid, layout
 from bokeh.models import ColumnDataSource, Div, HoverTool
@@ -9,14 +8,8 @@ from bokeh.plotting import Figure, figure
 from bokeh.transform import dodge
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
-from .bokeh_utils import (
-    create_exec_price_figure,
-    create_il_control_figure,
-    create_pnl_breakdown_figure,
-    create_price_figure,
-    create_price_impact_figure,
-)
 from .market import MarketPair, Pool, TradeOrder, split_ticker
+from .plot_layout import default_layout, div_protocol_layout
 from .swap import (
     MidPrice,
     constant_product_curve,
@@ -581,73 +574,6 @@ def new_df_div(df, plot_width=900, plot_height=600):
     # return Div(text=format_df(df),width=plot_width, height=plot_height)
 
 
-def create_simulation_gridplot(df: pd.DataFrame):
-    return [
-        [
-            create_pnl_breakdown_figure(
-                df,
-                title="PnL Breakdown",
-                x_axis_type="datetime",
-                y_percent_format=True,
-                toolbar_location=None,
-            ),
-            create_pnl_breakdown_figure(
-                df,
-                title="IL Breakdown",
-                idx_column="mkt_price_ratio",
-                line_type="fitted",
-                x_percent_format=True,
-                y_percent_format=True,
-                toolbar_location=None,
-            ),
-        ],
-        [
-            create_price_figure(
-                df,
-                title="Mid Vs Mkt price",
-                x_axis_type="datetime",
-                y_percent_format=False,
-                toolbar_location=None,
-            ),
-            create_price_impact_figure(
-                df,
-                title="Price Impact",
-                x_axis_type="datetime",
-                y_percent_format=True,
-                toolbar_location=None,
-            ),
-        ],
-        [
-            create_pnl_breakdown_figure(
-                df,
-                title="PnL Breakdown",
-                line_type="distribution",
-                x_percent_format=True,
-                y_percent_format=True,
-                toolbar_location=None,
-            ),
-            create_il_control_figure(
-                df,
-                title="IL theoric vs actual",
-                idx_column="mkt_price_ratio",
-                line_type="fitted",
-                x_percent_format=True,
-                y_percent_format=True,
-                x_desired_num_ticks=4,
-                toolbar_location=None,
-            ),
-            create_exec_price_figure(
-                df,
-                title="Exec Vs Mkt price",
-                line_type="distribution",
-                x_percent_format=False,
-                y_percent_format=True,
-                toolbar_location=None,
-            ),
-        ],
-    ]
-
-
 def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout=None) -> layout:
     """Creates a new simulation figure.
 
@@ -661,7 +587,7 @@ def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout=None) -> layo
     """
     df_sim = simul["breakdown"]
     if sim_layout is None:
-        sim_layout = create_simulation_gridplot(df_sim)
+        sim_layout = default_layout(df_sim)
     title_text = (
         f"{mkt.ticker} Simulation between {df_sim.index.min()} and {df_sim.index.max()}"
     )
@@ -683,3 +609,10 @@ def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout=None) -> layo
         ],
         sizing_mode="scale_both",
     )
+
+
+def new_div_simulation_figure(
+    mkt: MarketPair,
+    simul: dict,
+) -> layout:
+    return new_simulation_figure(mkt, simul, div_protocol_layout(simul["breakdown"]))

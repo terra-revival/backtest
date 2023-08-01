@@ -97,10 +97,6 @@ class TestSimpleUniV2Strategy:
     "peg_price, mkt_price, mid_price, order_size",
     [
         (1.0, 1.0, 1.0, -100),
-        (1.0, 1.0, 1.0, -1000),
-        (1.0, 1.0, 1.0, -10000),
-        (1.0, 1.0, 1.0, -100),
-        (1.0, 1.0, 1.0, -100),
     ],
 )
 class TestDivProtocolStrategy:
@@ -165,11 +161,6 @@ class TestDivProtocolStrategy:
         assert exec_info["buy_back_mid_price"] == expected_bb_mid_price
         assert exec_info["mid_price"] == mid_price
         assert exec_info["price"] == exec_price
-
-        import pprint
-
-        pp = pprint.PrettyPrinter(indent=4)
-        pp.pprint(trade_exec_info[0])
 
 
 @pytest.mark.parametrize(

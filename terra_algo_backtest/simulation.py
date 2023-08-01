@@ -43,7 +43,7 @@ def swap_simulation(
     for row in trades:
         trade_exec_info.extend(strategy.execute(row, trade_df))
     gc.enable()
-    return sim_results(trade_exec_info)
+    return sim_results(strategy, trade_exec_info)
 
 
 @timer_func

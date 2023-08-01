@@ -283,6 +283,11 @@ create_trade_pnl_pct_figure = register("create_trade_pnl_pct_figure", ["trade_pn
 create_fees_pnl_pct_figure = register("create_fees_pnl_pct_figure", ["fees_pnl_pct"])
 create_il_figure = register("create_il_figure", ["impermanent_loss"])
 
+create_div_tax_figure = register("create_div_tax_figure", ["div_tax_quote"])
+create_div_tax_unused_figure = register(
+    "create_div_tax_unused_figure", ["div_tax_quote_unused"]
+)
+
 # Register multicurve create_line_chart functions
 create_pnl_breakdown_figure = register(
     new_function_name="create_pnl_breakdown_figure",
@@ -309,5 +314,12 @@ create_exec_price_figure = register(
     new_function_name="create_exec_price_figure",
     columns=["mkt_price", "price"],
     colors=["grey", "navy"],
+    line_dash=["solid", "dotted"],
+)
+
+create_buy_back_price_figure = register(
+    new_function_name="create_buy_back_price_figure",
+    columns=["mid_price", "buy_back_mid_price"],
+    colors=["blue", "green"],
     line_dash=["solid", "dotted"],
 )

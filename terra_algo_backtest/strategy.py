@@ -49,8 +49,10 @@ class SimpleUniV2Strategy(Strategy):
     def execute(self, current_row: dict, sim_data: pd.DataFrame) -> List[dict]:
         trade_exec_info = []
         self.cp_amm.update_mkt_price(current_row["price"])
+
         if self.arb_strategy:
             trade_exec_info.extend(self.arb_strategy.execute(current_row, sim_data))
+
         if current_row["quantity"] != 0:
             trade_order = TradeOrder(
                 self.cp_amm.mkt.ticker,
@@ -78,6 +80,8 @@ class DivProtocolStrategy(Strategy):
         trade_exec_info = self.strategy.execute(current_row, sim_data)
         for exec_info in trade_exec_info:
             div_tax_pct = self.calc_div_tax(exec_info)
+            exec_info["buy_back_mid_price"] = exec_info["mid_price"]
+
             if div_tax_pct > 0.0:
                 # div tax
                 exec_info["div_tax_pct"] = div_tax_pct
