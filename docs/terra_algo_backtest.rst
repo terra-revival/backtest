@@ -60,6 +60,14 @@ terra\_algo\_backtest.market module
    :undoc-members:
    :show-inheritance:
 
+terra\_algo\_backtest.plot\_layout module
+-----------------------------------------
+
+.. automodule:: terra_algo_backtest.plot_layout
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 terra\_algo\_backtest.plotting module
 -------------------------------------
 

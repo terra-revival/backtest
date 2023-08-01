@@ -7,13 +7,8 @@ Welcome to Terra Algo Backtest's documentation!
 
    readme
    installation
-   usage
-   examples/uniswap_v2.ipynb
-   examples/terra_market_module.ipynb
-   examples/backtesting_lunc_ustc.ipynb
+   examples/backtesting_div_protocol.ipynb
    modules
-   contributing
-   authors
    history
 
 Indices and tables
