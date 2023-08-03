@@ -349,7 +349,7 @@ class MarketPair:
         dy = sqrt_k * (np.sqrt(1 / mid_price) - np.sqrt(1 / mkt_price))
         return dx, dy
 
-    def get_reserves(self, trading_pair: str) -> Tuple[float, float]:
+    def get_reserves(self, trade_side: str) -> Tuple[float, float]:
         """Returns reserves in correct order based on the trading pairs (normal or
         inversed).
 
@@ -365,12 +365,12 @@ class MarketPair:
             Exception: If the trading pair is unknown.
 
         """
-        if trading_pair == self.ticker:
+        if trade_side == "buy":
             return self.pool_1.balance, self.pool_2.balance
-        elif trading_pair == self.inverse_ticker:
+        elif trade_side == "sell":
             return self.pool_2.balance, self.pool_1.balance
         else:
-            raise Exception(f"Unknown trading pair {trading_pair}")
+            raise Exception(f"Unknown side {trade_side} for trade")
 
     def add_liquidity(
         self, liq_amount: float, quote_1: MarketQuote, quote_2: MarketQuote
@@ -444,8 +444,7 @@ def new_market(
 class TradeOrder:
     """A trade order for a swap to execute."""
 
-    def __init__(self, trading_pair: str, order_size: float, transaction_fees: float):
-        self.ticker = trading_pair
+    def __init__(self, order_size: float, transaction_fees: float):
         # the order size
         self.order_size = abs(order_size)
         # the direction of the order
@@ -466,4 +465,4 @@ class TradeOrder:
     @classmethod
     def create_default(cls, mkt: MarketPair) -> TradeOrder:
         """Default order equal to 10% of the first pool."""
-        return cls(mkt.ticker, 0.1 * mkt.pool_1.balance, mkt.swap_fee)
+        return cls(0.1 * mkt.pool_1.balance, mkt.swap_fee)

@@ -3,7 +3,7 @@ from typing import List
 
 import pandas as pd
 
-from .exec_engine import ConstantProductEngine, calc_arb_trade, calc_arb_trade_pnl
+from .exec_engine import ConstantProductEngine, calc_arb_trade_pnl
 from .market import TradeOrder
 
 
@@ -23,8 +23,7 @@ class ArbStrategy(Strategy):
 
     def execute(self, current_row: dict, sim_data: pd.DataFrame) -> List[dict]:
         trade_exec_info = []
-        self.cp_amm.update_mkt_price(current_row["price"])
-        arb_trade, exec_price = calc_arb_trade(self.cp_amm)
+        arb_trade, exec_price = self.cp_amm.calc_arb_trade(current_row["price"])
         if arb_trade:
             arb_trade_pnl = calc_arb_trade_pnl(
                 arb_trade, exec_price, current_row["price"], fees=0
@@ -48,14 +47,11 @@ class SimpleUniV2Strategy(Strategy):
 
     def execute(self, current_row: dict, sim_data: pd.DataFrame) -> List[dict]:
         trade_exec_info = []
-        self.cp_amm.update_mkt_price(current_row["price"])
-
         if self.arb_strategy:
             trade_exec_info.extend(self.arb_strategy.execute(current_row, sim_data))
 
         if current_row["quantity"] != 0:
             trade_order = TradeOrder(
-                self.cp_amm.mkt.ticker,
                 current_row["quantity"],
                 self.cp_amm.mkt.swap_fee,
             )

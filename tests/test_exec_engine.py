@@ -3,7 +3,6 @@ from pytest import approx
 
 from terra_algo_backtest.exec_engine import (
     ConstantProductEngine,
-    calc_arb_trade,
     calc_arb_trade_pnl,
 )
 from terra_algo_backtest.market import MarketPair, Pool, TradeOrder
@@ -12,8 +11,8 @@ from terra_algo_backtest.market import MarketPair, Pool, TradeOrder
 # - long trade = buy pool / sell mkt eg. buy A/B pool / sell A/B mkt
 # - short trade = sell pool / buy mkt eg. sell A/B pool / buy A/B mkt
 
-long_trade = TradeOrder("A/B", 1000, 0)
-short_trade = TradeOrder("B/A", -1000, 0)
+long_trade = TradeOrder(1000, 0)
+short_trade = TradeOrder(-1000, 0)
 
 expected_exec_info = {
     "long": {
@@ -115,7 +114,7 @@ def test_calc_arb_trade(mkt_price):
 
     ctx = {"trade_date": "2023-07-22", "price": mkt_price}
 
-    arb_trade, exec_price = calc_arb_trade(cp_amm)
+    arb_trade, _ = cp_amm.calc_arb_trade(mkt_price)
     if mkt_price != cp_amm.mkt.mid_price:
         assert arb_trade is not None
         exec_info = cp_amm.execute_trade(ctx, arb_trade)
@@ -174,13 +173,13 @@ def test_calc_arb_trade_pnl_zero_price(trade, pool_exec_price, mkt_price, fees):
 )
 def test_execute_trade(trade, expected_exec_info):
     # set up the context and the market
-    ctx = {"trade_date": "2023-07-22"}
+    ctx = {"trade_date": "2023-07-22", "price": 2}
     cp_amm = ConstantProductEngine(
         mkt=MarketPair(
             pool_1=Pool("A", 2000),
             pool_2=Pool("B", 1000),
             swap_fee=0.01,
-            mkt_price=2,
+            mkt_price=ctx["price"],
         )
     )
 

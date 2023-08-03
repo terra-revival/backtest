@@ -177,7 +177,7 @@ def swap_price(mkt: MarketPair, order: TradeOrder) -> Tuple[float, float]:
 
     """
     dx = order.order_size
-    x, y = mkt.get_reserves(order.ticker)
+    x, y = mkt.get_reserves(order.direction)
     dy = (y * dx) / (x + dx)
     new_x, new_y = x + dx, y - dy
     assert_cp_invariant(new_x, new_y, mkt.cp_invariant)
@@ -247,7 +247,7 @@ def price_impact_range(
     # constant product invariant
     k = mkt.cp_invariant
     # start: (x,y)
-    x_start, y_start = mkt.get_reserves(order.ticker)
+    x_start, y_start = mkt.get_reserves(order.direction)
     # end: (x+dx, y-dy)
     x_end = x_start + dx
     y_end = y_start * (1.0 - dx / (x_start + dx))

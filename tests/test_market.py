@@ -145,7 +145,7 @@ class TestMarketPairSwap:
         )
         self.qty, self.exec_price = constant_product_swap(
             self.market_pair,
-            TradeOrder("BTC/USD", 100, 0.01),
+            TradeOrder(100, 0.01),
         )
 
     def test_mid_price_0(self):

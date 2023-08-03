@@ -24,7 +24,6 @@ class TestConstantProductSwapSimple:
         )
 
         self.trade_order = TradeOrder(
-            trading_pair="B/A",
             order_size=3.0,
             transaction_fees=self.market_pair.swap_fee,
         )
@@ -91,11 +90,11 @@ class TestConstantProductSwap:
 
             if random.random() < 0.5:
                 order = TradeOrder(
-                    "BTC/USD", random.uniform(100, 45000), self.market_pair.swap_fee
+                    random.uniform(100, 45000), self.market_pair.swap_fee
                 )
             else:
                 order = TradeOrder(
-                    "USD/BTC", -random.uniform(0.01, 2), self.market_pair.swap_fee
+                    -random.uniform(0.01, 2), self.market_pair.swap_fee
                 )
 
             qty_received, exec_price = constant_product_swap(self.market_pair, order)
@@ -145,7 +144,7 @@ class TestConstantProductCurve:
 
         x_actual, y_actual = [x[0]], [y[0]]
         for dx in np.diff(x):
-            order = TradeOrder(mkt.ticker, dx, mkt.swap_fee)
+            order = TradeOrder(dx, mkt.swap_fee)
             dy, _ = constant_product_swap(mkt, order)
             x_actual.append(x_actual[-1] + dx)
             y_actual.append(y_actual[-1] - dy)

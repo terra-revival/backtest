@@ -29,6 +29,7 @@ class ConstantProductEngine(ExecEngine):
         """
         try:
             mid_price = self.mkt.mid_price
+            self.mkt.mkt_price = ctx["price"]
             qty_received, exec_price = constant_product_swap(self.mkt, order)
             return {
                 "trade_date": ctx["trade_date"],
@@ -57,9 +58,8 @@ class ConstantProductEngine(ExecEngine):
 
         """
         try:
-            ticker = self.mkt.ticker if direction == "buy" else self.mkt.inverse_ticker
             exec_price, mid_price = swap_price(
-                self.mkt, TradeOrder(ticker, size, self.mkt.swap_fee)
+                self.mkt, TradeOrder(size, self.mkt.swap_fee)
             )
             return exec_price, mid_price
         except AttributeError as e:
@@ -69,32 +69,17 @@ class ConstantProductEngine(ExecEngine):
         except KeyError as e:
             raise KeyError("Missing key in context dictionary: " + str(e))
 
-    def update_mkt_price(self, new_price: float) -> None:
-        """Updates the market price for the MarketPair.
 
-        Args:
-            new_price (float): The new market price.
+    def calc_arb_trade(self, target_price: float) -> Tuple[TradeOrder | None, float]:
+        """Calculates the trade order that would be executed to arb the DEX against another
+        venue."""
+        dx, dy = self.mkt.get_delta_reserves(target_price)
+        if dy == 0 or dx == 0:
+            return None, 0.0
 
-        Returns:
-            None
-
-        """
-        # TODO: find a better way to update the market price
-        self.mkt.mkt_price = new_price
-
-
-def calc_arb_trade(
-    cp_amm: ConstantProductEngine,
-) -> Tuple[TradeOrder | None, float]:
-    """Calculates the trade order that would be executed to arb the DEX against another
-    venue."""
-    dx, dy = cp_amm.mkt.get_delta_reserves(cp_amm.mkt.mkt_price)
-    if dy == 0 or dx == 0:
-        return None, 0.0
-
-    qty = dx if dx > 0 else dy
-    trade = TradeOrder(cp_amm.mkt.ticker, qty, cp_amm.mkt.swap_fee)
-    return trade, dx / dy
+        qty = dx if dx > 0 else dy
+        trade = TradeOrder(qty, self.mkt.swap_fee)
+        return trade, dx / dy
 
 
 def calc_arb_trade_pnl(

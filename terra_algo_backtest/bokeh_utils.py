@@ -323,3 +323,5 @@ create_buy_back_price_figure = register(
     colors=["blue", "green"],
     line_dash=["solid", "dotted"],
 )
+
+
