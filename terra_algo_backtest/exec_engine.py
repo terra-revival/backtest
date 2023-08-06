@@ -28,15 +28,23 @@ class ConstantProductEngine(ExecEngine):
 
         """
         try:
-            mid_price = self.mkt.mid_price
             self.mkt.mkt_price = ctx["price"]
+
+            mid_price = self.mkt.mid_price
             qty_received, exec_price = constant_product_swap(self.mkt, order)
+            volume_base = qty_received if order.long else order.order_size
+            volume_quote = order.order_size if order.long else qty_received
+            price_impact = (exec_price / mid_price) - 1
+
             return {
                 "trade_date": ctx["trade_date"],
                 "side": order.direction,
                 "price": exec_price,
-                "price_impact": (exec_price / mid_price) - 1,
+                "price_impact": price_impact,
+                "trade_qty": order.order_size,
                 "qty_received": qty_received,
+                "volume_base": volume_base,
+                "volume_quote": volume_quote,
                 **self.mkt.describe(),
             }
         except AttributeError as e:

@@ -9,7 +9,7 @@ from bokeh.transform import dodge
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
 from .market import MarketPair, Pool, TradeOrder, split_ticker
-from .plot_layout import default_layout, div_protocol_layout
+from .plot_layout import default_layout # , div_protocol_layout
 from .swap import (
     MidPrice,
     constant_product_curve,
@@ -586,8 +586,6 @@ def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout=None) -> layo
 
     """
     df_sim = simul["breakdown"]
-    if sim_layout is None:
-        sim_layout = default_layout(df_sim)
     title_text = (
         f"{mkt.ticker} Simulation between {df_sim.index.min()} and {df_sim.index.max()}"
     )
@@ -607,12 +605,11 @@ def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout=None) -> layo
         [
             grid(sim_layout, sizing_mode="scale_width"),
         ],
-        sizing_mode="scale_both",
+
+
+        # [
+        #     grid(default_layout(df_sim), sizing_mode="scale_width"),
+        #     grid(sim_layout, sizing_mode="scale_width"),
+        # ],
+        sizing_mode="scale_width",
     )
-
-
-def new_div_simulation_figure(
-    mkt: MarketPair,
-    simul: dict,
-) -> layout:
-    return new_simulation_figure(mkt, simul, div_protocol_layout(simul["breakdown"]))

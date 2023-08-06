@@ -176,10 +176,23 @@ def swap_price(mkt: MarketPair, order: TradeOrder) -> Tuple[float, float]:
             Swap execution price
 
     """
-    dx = order.order_size
-    x, y = mkt.get_reserves(order.direction)
-    dy = (y * dx) / (x + dx)
-    new_x, new_y = x + dx, y - dy
+    assert order.order_size != 0
+    # the reserves depending on the swap direction
+    x, y = mkt.pool_1.balance, mkt.pool_2.balance
+    # the order size
+    if order.direction == "buy":
+        dx = order.net_order_size
+        # calculate dy amount of tokens B to be taken out from the AMM
+        dy = (y * dx) / (x + dx)
+        # add dx amount of tokens A to the AMM
+        new_x, new_y = x + dx, y - dy
+    elif order.direction == "sell":
+        dy = order.net_order_size
+        # calculate dx amount of tokens A to be taken out from the AMM
+        dx = (x * dy) / (y + dy)
+        # add dx amount of tokens A to the AMM
+        new_x, new_y = x - dx, y + dy
+
     assert_cp_invariant(new_x, new_y, mkt.cp_invariant)
     return dx / dy, new_x / new_y
 
