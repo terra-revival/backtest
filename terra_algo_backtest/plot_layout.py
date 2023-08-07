@@ -1,6 +1,7 @@
 import pandas as pd
 
 from .bokeh_utils import (
+    PercentTickFormatter,
     create_exec_price_figure,
     create_il_control_figure,
     create_pnl_breakdown_figure,
@@ -8,7 +9,6 @@ from .bokeh_utils import (
     create_price_impact_figure,
     create_buy_back_volume_quote_figure,
     create_reserve_account_figure,
-    create_div_tax_quote_figure,
     create_div_price_compare_figure,
     create_volume_quote_figure,
     create_div_volume_quote_figure,
@@ -16,7 +16,7 @@ from .bokeh_utils import (
 )
 
 
-def default_layout(df: pd.DataFrame):
+def default_layout(df: pd.DataFrame, quote_asset: str):
     return [
         [
             create_pnl_breakdown_figure(
@@ -90,68 +90,10 @@ def default_layout(df: pd.DataFrame):
     ]
 
 
-def div_layout(df: pd.DataFrame, include_default_layout=False):
-    layout = default_layout(df) if include_default_layout else []
-    layout.extend([
-        [
-            create_div_price_compare_figure(
-                df,
-                title="Price Div Tax ON/OFF",
-                x_axis_type="datetime",
-                toolbar_location=None,
-                height=150,
-            ),
-        ],
-        [
-            create_div_volume_quote_figure(
-                df,
-                title="Volume (Quote))",
-                chart_type="vbar_stack",
-                x_axis_type="datetime",
-                toolbar_location=None,
-                height=150,
-            ),
-        ],
-        [
-            create_buy_back_volume_quote_figure(
-                df,
-                title="Buy back volume (Quote)",
-                chart_type="vbar",
-                x_axis_type="datetime",
-                toolbar_location=None,
-                height=150,
-            ),
-        ],
-        [
-            create_div_tax_quote_figure(
-                df,
-                title="Div Tax (Quote)",
-                chart_type="vbar",
-                x_axis_type="datetime",
-                toolbar_location=None,
-            ),
-            create_reserve_account_figure(
-                df,
-                title="Reserve (Quote)",
-                chart_type="vbar",
-                x_axis_type="datetime",
-                toolbar_location=None,
-            ),
-        ],
-    ])
-    return layout
-
-def new_div_layout(df: pd.DataFrame):
-    default_axis={
-        "x_axis_type":"datetime",
-    }
-    default_figure={
-        "toolbar_location":None,
-        "height":150,
-    }
+def div_layout(df: pd.DataFrame, quote_asset: str):
     default_params={
-        **default_axis,
-        **default_figure,
+        "toolbar_location":None,
+        "height":200,
     }
 
     return [
@@ -159,44 +101,44 @@ def new_div_layout(df: pd.DataFrame):
             create_div_price_compare_figure(
                 df,
                 title="Price Div Tax ON/OFF",
-                toolbar_location=None,
-                height=200,
-                **default_axis,
+                **default_params,
+                y_axis_label=quote_asset,
             ),
         ],
         [
             create_div_volume_quote_figure(
                 df,
-                title="Volume (Quote))",
+                title="Volume Div Tax ON/OFF",
                 chart_type="vbar_stack",
                 **default_params,
+                y_axis_label=quote_asset,
             ),
         ],
         [
             create_reserve_account_figure(
                 df,
-                title="Reserve (Quote)",
+                title="Reserve",
                 chart_type="vbar",
                 **default_params,
+                y_axis_label=quote_asset,
             ),
             create_buy_back_volume_quote_figure(
                 df,
-                title="Buy back volume (Quote)",
+                title="Buy back volume",
                 chart_type="vbar",
                 **default_params,
+                y_axis_label=quote_asset,
             ),
         ],
         [
             create_div_tax_pct_figure(
                 df,
                 title="Div Tax (%)",
-                y_percent_format=True,
                 **default_params,
             ),
             create_price_impact_figure(
                 df,
                 title="Price Impact",
-                y_percent_format=True,
                 **default_params,
             ),
         ],
@@ -204,7 +146,6 @@ def new_div_layout(df: pd.DataFrame):
             create_pnl_breakdown_figure(
                 df,
                 title="PnL Breakdown",
-                y_percent_format=True,
                 **default_params,
             ),
             create_pnl_breakdown_figure(
@@ -212,9 +153,8 @@ def new_div_layout(df: pd.DataFrame):
                 title="IL Breakdown",
                 idx_column="mkt_price_ratio",
                 chart_type="fitted",
-                x_percent_format=True,
-                y_percent_format=True,
-                **default_figure,
+                x_axis_formatter=PercentTickFormatter,
+                **default_params,
             ),
         ],
     ]

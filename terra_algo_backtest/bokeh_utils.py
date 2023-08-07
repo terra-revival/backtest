@@ -13,6 +13,8 @@ from bokeh.models import (
     NumeralTickFormatter,
 )
 from bokeh.plotting import Figure, figure
+# type alias
+TickFormatter = NumeralTickFormatter | DatetimeTickFormatter
 
 
 def create_line_data(df_index: pd.Index, df_col: pd.Series) -> Dict[str, List]:
@@ -73,7 +75,7 @@ def create_fitted_data(
 def create_vbar_data(df_col: pd.Series) -> Dict[str, List]:
     return {
         "x": df_col.index,
-        "top": df_col,
+        "top": df_col.tolist(),
     }
 
 
@@ -200,11 +202,10 @@ def create_chart(
     chart_type: str = "line",
     idx_column: str = None,
     group_method: str = "mean",
-    x_axis_type: str = None,
     x_desired_num_ticks: int=4,
     y_desired_num_ticks: int=4,
-    y_percent_format: bool=False,
-    x_percent_format: bool=False,
+    x_axis_formatter: TickFormatter = None,
+    y_axis_formatter: TickFormatter = None,
     **kwargs,
 ) -> figure:
     """Creates a line chart from DataFrame and column.
@@ -222,9 +223,8 @@ def create_chart(
     data_sources = create_data_sources(df, columns, chart_type, idx_column=idx_column, group_method=group_method)
     return with_axis_format(
         p=create_bokeh_figure(data_sources, chart_type, **kwargs),
-        x_axis_type=x_axis_type,
-        y_percent_format=y_percent_format,
-        x_percent_format=x_percent_format,
+        x_axis_formatter=x_axis_formatter,
+        y_axis_formatter=y_axis_formatter,
         x_desired_num_ticks=x_desired_num_ticks,
         y_desired_num_ticks=y_desired_num_ticks,
     )
@@ -252,11 +252,10 @@ def register(new_function_name: str, columns: List[str], **kwargs) -> Callable:
 
 def with_axis_format(
     p: Figure,
-    y_percent_format: bool,
-    x_percent_format: bool,
     x_desired_num_ticks: int,
     y_desired_num_ticks: int,
-    **kwargs,
+    x_axis_formatter: TickFormatter = None,
+    y_axis_formatter: TickFormatter = None,
 ) -> Figure:
     """Sets the axis format for a Bokeh figure.
 
@@ -270,39 +269,71 @@ def with_axis_format(
     Returns:
         Figure: A Bokeh figure with the axis format set.
 
+
     """
+    data = p.renderers[0].data_source.data
 
-    if x_percent_format:
-        p.xaxis.formatter = NumeralTickFormatter(format="0.00%")
-    elif kwargs.get("x_axis_type", None) == "datetime":
-        p.xaxis.formatter = DatetimeTickFormatter(
-            years=["%m/%d/%y"],
-            months=["%m/%d/%y"],
-            days=["%m/%d/%y"],
-            hours=["%m/%d/%y %H:%M"],
-            minutes=["%m/%d/%y %H:%M"],
-            seconds=["%m/%d/%y %H:%M:%S"],
-        )
-    else:
-        p.xaxis.formatter.use_scientific = False
+    # Infer x_axis formatter if not provided
+    if x_axis_formatter is None:
+        x_axis_formatter = infer_formatter_type_from_data(data["x"])
 
-    if y_percent_format:
-        p.yaxis.formatter = NumeralTickFormatter(format="0.00%")
-    else:
-        p.yaxis.formatter.use_scientific = False
+    # Infer y_axis formatter if not provided
+    if y_axis_formatter is None:
+        axis = list(data.keys())
+        y_axis = axis[1] if axis[0] == "x" else axis[0]
+        y_axis_formatter = infer_formatter_type_from_data(data[y_axis])
 
+    p.xaxis.formatter = x_axis_formatter
+    p.yaxis.formatter = y_axis_formatter
     p.xaxis.ticker = BasicTicker(desired_num_ticks=x_desired_num_ticks)
     p.yaxis.ticker = BasicTicker(desired_num_ticks=y_desired_num_ticks)
 
     return p
 
+DefaultTickFormatter = NumeralTickFormatter(format="0.0a")
+PercentTickFormatter = NumeralTickFormatter(format="0.0%")
+DecimalTickFormatter = NumeralTickFormatter(format="0.00")
+SmallDecimalTickFormatter = NumeralTickFormatter(format="0.0000")
+DateTickFormatter = DatetimeTickFormatter(
+    years=["%m/%d/%y"],
+    months=["%m/%d/%y"],
+    days=["%m/%d/%y"],
+    hours=["%m/%d/%y %H:%M"],
+    minutes=["%m/%d/%y %H:%M"],
+    seconds=["%m/%d/%y %H:%M:%S"],
+)
+
+def infer_formatter_type_from_data(data):
+    """
+    Infers the appropriate formatter type based on the provided data.
+
+    Args:
+        data (list or array-like): Data for which the formatter needs to be inferred.
+
+    Returns:
+        str: Type of the inferred formatter.
+    """
+
+    # Check for datetime data
+    if isinstance(data[0], (pd.Timestamp, np.datetime64)):
+        return DateTickFormatter
+
+    # Check for small numbers (less than 0.01)
+    if all(0 < abs(value) < 0.01 for value in data):
+        return SmallDecimalTickFormatter
+
+    # Check for small numbers (less than 0.01)
+    if all(0 < abs(value) < 0.1 for value in data):
+        return DecimalTickFormatter
+
+    # Default case
+    return DefaultTickFormatter
 
 
 # Register create_chart functions
 create_mid_price_figure = register("create_mid_price_figure", ["mid_price"])
 create_mkt_price_figure = register("create_mkt_price_figure", ["mkt_price"])
 create_spread_figure = register("create_spread_figure", ["spread"])
-create_price_impact_figure = register("create_price_impact_figure", ["price_impact"])
 
 create_pnl_figure = register("create_pnl_figure", ["roi"])
 create_trade_pnl_pct_figure = register("create_trade_pnl_pct_figure", ["trade_pnl_pct"])
@@ -311,12 +342,19 @@ create_il_figure = register("create_il_figure", ["impermanent_loss"])
 
 create_volume_quote_figure = register("create_volume_quote_figure", ["volume_quote"])
 
+create_price_impact_figure = register(
+    new_function_name="create_price_impact_figure",
+    columns=["price_impact"],
+    y_axis_formatter=NumeralTickFormatter(format="0.0%"),
+)
+
 # Register multicurve create_line_chart functions
 create_pnl_breakdown_figure = register(
     new_function_name="create_pnl_breakdown_figure",
     columns=["roi", "trade_pnl_pct", "fees_pnl_pct"],
     colors=["navy", "crimson", "green"],
     line_dash=["solid", "dashed", "dashed"],
+    y_axis_formatter=NumeralTickFormatter(format="0.0%"),
 )
 
 create_il_control_figure = register(
@@ -324,6 +362,7 @@ create_il_control_figure = register(
     columns=["impermanent_loss", "trade_pnl_pct"],
     colors=["grey", "navy"],
     line_dash=["solid", "dotted"],
+    y_axis_formatter=NumeralTickFormatter(format="0.0%"),
 )
 
 create_price_figure = register(
@@ -341,10 +380,15 @@ create_exec_price_figure = register(
 )
 
 create_div_exec_pric_figure = register("create_div_exec_price_figure", ["div_exec_price"])
-create_div_tax_pct_figure = register("create_div_tax_pct_figure", ["div_tax_pct"])
 create_div_tax_quote_figure = register("create_div_tax_quote_figure", ["div_tax_quote"])
 create_reserve_account_figure = register("create_reserve_account_figure", ["reserve_account"])
 create_buy_back_volume_quote_figure = register("create_buy_back_volume_quote_figure", ["buy_back_volume_quote"])
+
+create_div_tax_pct_figure = register(
+    new_function_name="create_div_tax_pct_figure",
+    columns=["div_tax_pct"],
+    y_axis_formatter=NumeralTickFormatter(format="0.0%"),
+)
 
 create_div_volume_quote_figure = register(
     new_function_name="create_div_volume_quote_figure",

@@ -574,7 +574,7 @@ def new_df_div(df, plot_width=900, plot_height=600):
     # return Div(text=format_df(df),width=plot_width, height=plot_height)
 
 
-def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout=None) -> layout:
+def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout_fn=None) -> layout:
     """Creates a new simulation figure.
 
     Args:
@@ -589,6 +589,11 @@ def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout=None) -> layo
     title_text = (
         f"{mkt.ticker} Simulation between {df_sim.index.min()} and {df_sim.index.max()}"
     )
+    if sim_layout_fn:
+        sim_layout = sim_layout_fn(df_sim, mkt.pool_1.ticker)
+    else:
+        sim_layout = default_layout(df_sim)
+
     return layout(
         [
             Div(text=f"<h1 style='text-align:center'>{title_text}</h1>"),
