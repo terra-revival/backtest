@@ -98,7 +98,7 @@ def create_data_sources(
         if chart_type == "line":
             data_sources.append(create_line_data(df.index, df[column]))
         elif chart_type == "scatter":
-            data_sources.append(create_line_data(df.index, df[column]))  # scatter uses same data as line
+            data_sources.append(create_line_data(df[idx_column], df[column]))  # scatter uses same data as line
         elif chart_type == "distribution":
             data_sources.append(create_distrib_data(df[column]))
         elif chart_type == "fitted":
@@ -331,16 +331,37 @@ def infer_formatter_type_from_data(data):
 
 
 # Register create_chart functions
+create_trade_price_figure = register("create_trade_price_figure", ["price"])
+create_trade_volume_figure = register("create_trade_volume_figure", ["quantity"])
+
 create_mid_price_figure = register("create_mid_price_figure", ["mid_price"])
 create_mkt_price_figure = register("create_mkt_price_figure", ["mkt_price"])
-create_spread_figure = register("create_spread_figure", ["spread"])
+create_volume_quote_figure = register("create_volume_quote_figure", ["volume_quote"])
+
+create_spread_figure = register(
+    new_function_name="create_spread_figure",
+    columns=["spread"],
+    y_axis_formatter=NumeralTickFormatter(format="0.000%"),
+)
 
 create_pnl_figure = register("create_pnl_figure", ["roi"])
 create_trade_pnl_pct_figure = register("create_trade_pnl_pct_figure", ["trade_pnl_pct"])
 create_fees_pnl_pct_figure = register("create_fees_pnl_pct_figure", ["fees_pnl_pct"])
 create_il_figure = register("create_il_figure", ["impermanent_loss"])
 
-create_volume_quote_figure = register("create_volume_quote_figure", ["volume_quote"])
+create_arb_profit_figure = register("create_arb_profit_figure", ["arb_profit"])
+create_retail_volume_quote_figure = register("create_retail_volume_quote_figure", ["retail_volume_quote"])
+create_arb_volume_quote_figure = register(
+    new_function_name="create_arb_volume_quote_figure",
+    columns=["arb_volume_quote", "retail_volume_quote"],
+)
+
+create_portfolio_figure = register(
+    new_function_name="create_portfolio_figure",
+    columns=["current_portfolio", "hold_portfolio"],
+    colors=["navy", "crimson"],
+    line_dash=["solid", "dashed"],
+)
 
 create_price_impact_figure = register(
     new_function_name="create_price_impact_figure",
@@ -367,9 +388,9 @@ create_il_control_figure = register(
 
 create_price_figure = register(
     new_function_name="create_price_figure",
-    columns=["mkt_price", "mid_price"],
-    colors=["grey", "navy"],
-    line_dash=["solid", "dotted"],
+    columns=["mid_price", "mkt_price", "avg_price"],
+    colors=["navy", "crimson", "black"],
+    line_dash=["solid", "dotted", "dotted"],
 )
 
 create_exec_price_figure = register(
@@ -379,10 +400,25 @@ create_exec_price_figure = register(
     line_dash=["solid", "dotted"],
 )
 
-create_div_exec_pric_figure = register("create_div_exec_price_figure", ["div_exec_price"])
+create_div_exec_price_figure = register("create_div_exec_price_figure", ["div_exec_price"])
 create_div_tax_quote_figure = register("create_div_tax_quote_figure", ["div_tax_quote"])
 create_reserve_account_figure = register("create_reserve_account_figure", ["reserve_account"])
 create_buy_back_volume_quote_figure = register("create_buy_back_volume_quote_figure", ["buy_back_volume_quote"])
+
+create_reserve_breakdown_figure = register(
+    new_function_name="create_reserve_breakdown_figure",
+    columns=["reserve_base_quote", "reserve_quote"],
+)
+
+create_reserve_base_figure = register(
+    new_function_name="create_reserve_base_figure",
+    columns=["reserve_base"],
+)
+
+create_reserve_quote_figure = register(
+    new_function_name="create_reserve_quote_figure",
+    columns=["reserve_quote"],
+)
 
 create_div_tax_pct_figure = register(
     new_function_name="create_div_tax_pct_figure",

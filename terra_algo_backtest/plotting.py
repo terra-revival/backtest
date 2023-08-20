@@ -9,7 +9,7 @@ from bokeh.transform import dodge
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
 from .market import MarketPair, Pool, TradeOrder, split_ticker
-from .plot_layout import default_layout # , div_protocol_layout
+from .plot_layout import default_breakdown, default_headline
 from .swap import (
     MidPrice,
     constant_product_curve,
@@ -574,7 +574,7 @@ def new_df_div(df, plot_width=900, plot_height=600):
     # return Div(text=format_df(df),width=plot_width, height=plot_height)
 
 
-def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout_fn=None) -> layout:
+def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout_fn=default_breakdown) -> layout:
     """Creates a new simulation figure.
 
     Args:
@@ -586,35 +586,16 @@ def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout_fn=None) -> l
 
     """
     df_sim = simul["breakdown"]
-    title_text = (
-        f"{mkt.ticker} Simulation between {df_sim.index.min()} and {df_sim.index.max()}"
-    )
-    if sim_layout_fn:
-        sim_layout = sim_layout_fn(df_sim, mkt.pool_1.ticker)
-    else:
-        sim_layout = default_layout(df_sim)
+    df_sim_stats = simul["headline"]
 
+    sim_layout = sim_layout_fn(df_sim, mkt.pool_1.ticker)
+    header_layout = default_headline(df_sim_stats, mkt.assets(), mkt.perf())
     return layout(
         [
-            Div(text=f"<h1 style='text-align:center'>{title_text}</h1>"),
+            grid(header_layout, sizing_mode="stretch_width"),
         ],
         [
-            Div(text=format_df(simul["headline"])),
+            grid(sim_layout, sizing_mode="stretch_width"),
         ],
-        [
-            Div(text=format_df(mkt.assets())),
-        ],
-        [
-            Div(text=format_df(mkt.perf())),
-        ],
-        [
-            grid(sim_layout, sizing_mode="scale_width"),
-        ],
-
-
-        # [
-        #     grid(default_layout(df_sim), sizing_mode="scale_width"),
-        #     grid(sim_layout, sizing_mode="scale_width"),
-        # ],
-        sizing_mode="scale_width",
+        sizing_mode="stretch_width",
     )

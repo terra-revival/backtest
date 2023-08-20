@@ -41,12 +41,13 @@ def sim_results(strategy: Strategy, sim_outputs: list) -> dict:
     df_sim[["fees_paid_quote"]] = trade_data.diff().fillna(trade_data)
     df_sim["trade_pnl_pct"] = df_sim["trade_pnl"] / df_sim["hold_portfolio"]
     df_sim["fees_pnl_pct"] = df_sim["total_fees_paid_quote"] / df_sim["hold_portfolio"]
-
-    df_sim_agg = strategy.agg_results(df_sim)
+    df_sim["retail_volume_quote"] = df_sim["volume_quote"]
+    if "arb_profit" in df_sim.columns:
+        df_sim["retail_volume_quote"] -= df_sim["arb_volume_quote"]
 
     return {
         "headline": trade_summary(df_sim),
-        "breakdown": resample_df(df_sim_agg),
+        "breakdown": resample_df(strategy, df_sim),
         "breakdown_trades": df_sim,
     }
 
@@ -70,7 +71,8 @@ def trade_summary(df_trades: pd.DataFrame) -> pd.DataFrame:
     df.columns.name = None
     return df
 
-def resample_df(df_sim: pd.DataFrame) -> pd.DataFrame:
+
+def resample_df(strategy, df_sim: pd.DataFrame) -> pd.DataFrame:
     """Resamples the DataFrame based on a given frequency.
 
     Args:
@@ -82,51 +84,5 @@ def resample_df(df_sim: pd.DataFrame) -> pd.DataFrame:
 
     """
     df = df_sim.loc[:, df_sim.columns != "side"]
-    return df.resample('D').agg({
-        'price': 'mean',
-        "div_exec_price": "mean",
+    return df.resample('D').agg(strategy.agg(df_sim))
 
-        'mid_price': 'last',
-        "no_div_mid_price": "last",
-
-        'mkt_price': 'last',
-        'avg_price': 'mean',
-
-        'spread': 'last',
-        'price_impact': 'mean',
-        'mkt_price_ratio': 'last',
-
-        'impermanent_loss': 'last',
-
-        'current_base': 'last',
-        'current_quote': 'last',
-        'cp_invariant': 'last',
-        'asset_base_pct': 'last',
-
-        'volume_base': 'sum',
-        'volume_quote': 'sum',
-        "div_volume_quote": "sum",
-        "buy_back_volume_quote": "sum",
-
-        'total_volume_base': 'last',
-        'total_volume_quote': 'last',
-
-        'fees_paid_quote': 'sum',
-        'total_fees_paid_quote': 'last',
-
-        'trade_pnl': 'last',
-        'total_pnl': 'last',
-        'trade_pnl_pct': 'last',
-        'fees_pnl_pct': 'last',
-
-        'roi': 'last',
-        'hold_portfolio': 'last',
-        'current_portfolio': 'last',
-
-        'arb_profit': 'sum',
-        'total_arb_profit': 'last',
-
-        "div_tax_pct": "mean",
-        "div_tax_quote": "sum",
-        "reserve_account": "last",
-    })
