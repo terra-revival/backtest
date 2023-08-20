@@ -93,9 +93,7 @@ class TestConstantProductSwap:
                     random.uniform(100, 45000), self.market_pair.swap_fee
                 )
             else:
-                order = TradeOrder(
-                    -random.uniform(0.01, 2), self.market_pair.swap_fee
-                )
+                order = TradeOrder(-random.uniform(0.01, 2), self.market_pair.swap_fee)
 
             qty_received, exec_price = constant_product_swap(self.market_pair, order)
             dx = abs(order.net_order_size) if order.long else abs(qty_received)

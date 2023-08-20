@@ -574,7 +574,9 @@ def new_df_div(df, plot_width=900, plot_height=600):
     # return Div(text=format_df(df),width=plot_width, height=plot_height)
 
 
-def new_simulation_figure(mkt: MarketPair, simul: dict, sim_layout_fn=default_breakdown) -> layout:
+def new_simulation_figure(
+    mkt: MarketPair, simul: dict, sim_layout_fn=default_breakdown
+) -> layout:
     """Creates a new simulation figure.
 
     Args:

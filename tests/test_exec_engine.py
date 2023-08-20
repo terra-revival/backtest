@@ -1,10 +1,7 @@
 import pytest
 from pytest import approx
 
-from terra_algo_backtest.exec_engine import (
-    ConstantProductEngine,
-    calc_arb_trade_pnl,
-)
+from terra_algo_backtest.exec_engine import ConstantProductEngine, calc_arb_trade_pnl
 from terra_algo_backtest.market import MarketPair, Pool, TradeOrder
 
 # Conventions

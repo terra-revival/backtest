@@ -313,7 +313,6 @@ class MarketPair:
         df["change"] = df["current"] - df["start"]
         return df
 
-
     def perf(self) -> pd.DataFrame:
         """Calculates the performance of the market pair.
 
@@ -341,7 +340,6 @@ class MarketPair:
                 ]
             },
         )
-
 
     def get_delta_reserves(self, mkt_price: float) -> Tuple[float, float]:
         """The mid price of the trading pair."""

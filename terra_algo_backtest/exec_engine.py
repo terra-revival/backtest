@@ -77,10 +77,9 @@ class ConstantProductEngine(ExecEngine):
         except KeyError as e:
             raise KeyError("Missing key in context dictionary: " + str(e))
 
-
     def calc_arb_trade(self, target_price: float) -> Tuple[TradeOrder | None, float]:
-        """Calculates the trade order that would be executed to arb the DEX against another
-        venue."""
+        """Calculates the trade order that would be executed to arb the DEX against
+        another venue."""
         dx, dy = self.mkt.get_delta_reserves(target_price)
         if dy == 0 or dx == 0:
             return None, 0.0

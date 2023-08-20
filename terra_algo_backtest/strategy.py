@@ -6,42 +6,32 @@ import pandas as pd
 from .exec_engine import ConstantProductEngine, calc_arb_trade_pnl
 from .market import TradeOrder
 
-default_agg={
-    'price': 'mean',
-    'mid_price': 'last',
-
-    'mkt_price': 'last',
-    'avg_price': 'last',
-
-    'spread': 'last',
-    'price_impact': 'max',
-    'mkt_price_ratio': 'last',
-
-    'impermanent_loss': 'last',
-
-    'current_base': 'last',
-    'current_quote': 'last',
-    'cp_invariant': 'last',
-    'asset_base_pct': 'last',
-
-    'volume_base': 'sum',
-    'volume_quote': 'sum',
-
-    'total_volume_base': 'last',
-    'total_volume_quote': 'last',
-
-    'fees_paid_quote': 'sum',
-    'total_fees_paid_quote': 'last',
-
-    'trade_pnl': 'last',
-    'total_pnl': 'last',
-    'trade_pnl_pct': 'last',
-    'fees_pnl_pct': 'last',
-
-    'roi': 'last',
-    'hold_portfolio': 'last',
-    'current_portfolio': 'last',
-
+default_agg = {
+    "price": "mean",
+    "mid_price": "last",
+    "mkt_price": "last",
+    "avg_price": "last",
+    "spread": "last",
+    "price_impact": "max",
+    "mkt_price_ratio": "last",
+    "impermanent_loss": "last",
+    "current_base": "last",
+    "current_quote": "last",
+    "cp_invariant": "last",
+    "asset_base_pct": "last",
+    "volume_base": "sum",
+    "volume_quote": "sum",
+    "total_volume_base": "last",
+    "total_volume_quote": "last",
+    "fees_paid_quote": "sum",
+    "total_fees_paid_quote": "last",
+    "trade_pnl": "last",
+    "total_pnl": "last",
+    "trade_pnl_pct": "last",
+    "fees_pnl_pct": "last",
+    "roi": "last",
+    "hold_portfolio": "last",
+    "current_portfolio": "last",
 }
 
 
@@ -103,10 +93,15 @@ class SimpleUniV2Strategy(Strategy):
         return trade_exec_info
 
     def agg(self, sim_results: pd.DataFrame) -> pd.DataFrame:
-        arb_agg = self.arb_strategy.agg(sim_results)
+        if self.arb_strategy:
+            arb_agg = self.arb_strategy.agg(sim_results)
+            return {
+                **default_agg,
+                **arb_agg,
+            }
+
         return {
             **default_agg,
-            **arb_agg,
         }
 
 
@@ -120,6 +115,7 @@ class DivProtocolParams:
         self.peg_price = peg_price
         self.pct_buy_back = pct_buy_back
         self.exec_buy_back = exec_buy_back
+
 
 # Rewrite the DivProtocolStrategy class with the updated calc_div_tax function
 class DivProtocolStrategy:
@@ -154,9 +150,13 @@ class DivProtocolStrategy:
 
         if self.params.exec_buy_back:
             if self.reserve > 0 and self.cp_amm.mkt.mid_price < self.params.peg_price:
-                buy_back_trade, cash_quote, borrowed_base = self.calc_buy_back_trade(mkt_price)
+                buy_back_trade, cash_quote, borrowed_base = self.calc_buy_back_trade(
+                    mkt_price
+                )
                 if buy_back_trade:
-                    exec_info = self.perform_buy_back(current_row, buy_back_trade, cash_quote, borrowed_base)
+                    exec_info = self.perform_buy_back(
+                        current_row, buy_back_trade, cash_quote, borrowed_base
+                    )
                     trade_exec_info.append(exec_info)
 
         return trade_exec_info
@@ -165,23 +165,27 @@ class DivProtocolStrategy:
         strat_agg = self.strategy.agg(sim_results)
 
         if "div_tax_pct" in sim_results.columns:
-            strat_agg.update({
-                **default_agg,
-                "div_exec_price": "mean",
-                "no_div_mid_price": "last",
-                "div_volume_quote": "sum",
-                "div_tax_pct": "mean",
-                "div_tax_quote": "sum",
-                "reserve_base": "last",
-                "reserve_quote": "last",
-                "reserve_base_quote": "last",
-                "reserve_account": "last",
-            })
+            strat_agg.update(
+                {
+                    **default_agg,
+                    "div_exec_price": "mean",
+                    "no_div_mid_price": "last",
+                    "div_volume_quote": "sum",
+                    "div_tax_pct": "mean",
+                    "div_tax_quote": "sum",
+                    "reserve_base": "last",
+                    "reserve_quote": "last",
+                    "reserve_base_quote": "last",
+                    "reserve_account": "last",
+                }
+            )
 
         if "buy_back_volume_quote" in sim_results.columns:
-            strat_agg.update({
-                "buy_back_volume_quote": "sum",
-            })
+            strat_agg.update(
+                {
+                    "buy_back_volume_quote": "sum",
+                }
+            )
 
         return strat_agg
 
@@ -201,7 +205,7 @@ class DivProtocolStrategy:
         no_div_mid_price = self.cp_amm.mkt.mid_price
 
         exec_info = self.cp_amm.execute_trade(current_row, buy_back_trade)
-        net_volume_base = exec_info["volume_base"]-borrowed_base
+        net_volume_base = exec_info["volume_base"] - borrowed_base
 
         self.update_reserve(
             volume_quote=-cash_quote,
@@ -209,11 +213,13 @@ class DivProtocolStrategy:
             mkt_price=mkt_price,
         )
 
-        exec_info.update({
-            "no_div_mid_price": no_div_mid_price,
-            "buy_back_volume_quote": exec_info["volume_quote"],
-            **self.reserve_account,
-        })
+        exec_info.update(
+            {
+                "no_div_mid_price": no_div_mid_price,
+                "buy_back_volume_quote": exec_info["volume_quote"],
+                **self.reserve_account,
+            }
+        )
 
         return exec_info
 
@@ -234,12 +240,16 @@ class DivProtocolStrategy:
         borrowed_quote = min(collat_quote, dx - cash_quote)
         borrowed_base = borrowed_quote / mkt_price
         volume_quote = cash_quote + borrowed_quote
-        return TradeOrder(volume_quote, self.cp_amm.mkt.swap_fee), cash_quote, borrowed_base
+        return (
+            TradeOrder(volume_quote, self.cp_amm.mkt.swap_fee),
+            cash_quote,
+            borrowed_base,
+        )
 
     def update_reserve(self, volume_base, volume_quote, mkt_price):
         self.reserve_base += volume_base
         self.reserve_quote += volume_quote
-        self.reserve_base_quote = self.reserve_base*mkt_price
+        self.reserve_base_quote = self.reserve_base * mkt_price
         self.reserve = self.reserve_quote + self.reserve_base_quote
 
     def update_exec_info_with_div_tax(self, exec_info, mkt_price):
@@ -258,7 +268,9 @@ class DivProtocolStrategy:
 
             exec_info.update(div_exec_info)
 
-        exec_info.update({
-            **self.reserve_account,
-            "no_div_mid_price": exec_info["mid_price"],
-        })
+        exec_info.update(
+            {
+                **self.reserve_account,
+                "no_div_mid_price": exec_info["mid_price"],
+            }
+        )

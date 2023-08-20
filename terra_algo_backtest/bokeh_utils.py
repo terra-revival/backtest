@@ -1,6 +1,6 @@
 import sys
 from functools import partial, update_wrapper
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Union
 
 import numpy as np
 import pandas as pd
@@ -13,8 +13,9 @@ from bokeh.models import (
     NumeralTickFormatter,
 )
 from bokeh.plotting import Figure, figure
+
 # type alias
-TickFormatter = NumeralTickFormatter | DatetimeTickFormatter
+TickFormatter = Union[NumeralTickFormatter, DatetimeTickFormatter]
 
 
 def create_line_data(df_index: pd.Index, df_col: pd.Series) -> Dict[str, List]:
@@ -98,7 +99,9 @@ def create_data_sources(
         if chart_type == "line":
             data_sources.append(create_line_data(df.index, df[column]))
         elif chart_type == "scatter":
-            data_sources.append(create_line_data(df[idx_column], df[column]))  # scatter uses same data as line
+            data_sources.append(
+                create_line_data(df[idx_column], df[column])
+            )  # scatter uses same data as line
         elif chart_type == "distribution":
             data_sources.append(create_distrib_data(df[column]))
         elif chart_type == "fitted":
@@ -114,14 +117,17 @@ def create_data_sources(
             else:
                 raise ValueError("Invalid aggr_method. Choose from 'mean' or 'sum'.")
 
-            data_sources.append(create_fitted_data(df_group[idx_column], df_group[column]))
+            data_sources.append(
+                create_fitted_data(df_group[idx_column], df_group[column])
+            )
         elif chart_type == "vbar":
             data_sources.append(create_vbar_data(df[column]))
         elif chart_type == "vbar_stack":
             data_sources.append(create_vbar_stacked_data(df[columns]))
         else:
             raise ValueError(
-                "Invalid chart type. Choose from 'line', 'scatter', 'distribution', 'fitted', or 'vbar'"
+                "Invalid chart type. Choose from 'line', "
+                "'scatter', 'distribution', 'fitted', or 'vbar'"
             )
     return data_sources
 
@@ -131,7 +137,7 @@ def create_bokeh_figure(
     chart_type: str,
     colors: list = ["navy"],
     line_dash: list = ["solid"],
-    bar_width: float = 86_400_000, # 1 day
+    bar_width: float = 86_400_000,  # 1 day
     **kwargs,
 ) -> Figure:
     """Creates a Bokeh figure.
@@ -147,22 +153,26 @@ def create_bokeh_figure(
     p = figure(**kwargs)
     for i, data in enumerate(data_sets):
         source = ColumnDataSource(data)
-        color=colors[i % len(colors)]
-        if chart_type in ['line', 'scatter', 'distribution', 'fitted']:
-            figure_plot = p.line(
-                x="x",
-                y="y",
-                line_width=1.5,
-                alpha=0.6,
-                color=color,
-                line_dash=line_dash[i % len(line_dash)],
-                source=source,
-            ) if chart_type != 'scatter' else p.scatter(
-                x="x",
-                y="y",
-                alpha=0.6,
-                color=color,
-                source=source,
+        color = colors[i % len(colors)]
+        if chart_type in ["line", "scatter", "distribution", "fitted"]:
+            figure_plot = (
+                p.line(
+                    x="x",
+                    y="y",
+                    line_width=1.5,
+                    alpha=0.6,
+                    color=color,
+                    line_dash=line_dash[i % len(line_dash)],
+                    source=source,
+                )
+                if chart_type != "scatter"
+                else p.scatter(
+                    x="x",
+                    y="y",
+                    alpha=0.6,
+                    color=color,
+                    source=source,
+                )
             )
             hover = HoverTool(
                 tooltips=[("x", "@x{%F}"), ("y", "@y{0.00}")],
@@ -170,7 +180,7 @@ def create_bokeh_figure(
                 renderers=[figure_plot],
             )
             p.add_tools(hover)
-        elif chart_type == 'vbar':
+        elif chart_type == "vbar":
             p.vbar(
                 x="x",
                 top="top",
@@ -180,8 +190,8 @@ def create_bokeh_figure(
                 color=color,
                 line_color="white",
             )
-        elif chart_type == 'vbar_stack':
-            col_names = data.keys()-["x"]
+        elif chart_type == "vbar_stack":
+            col_names = data.keys() - ["x"]
             p.vbar_stack(
                 col_names,
                 x="x",
@@ -192,7 +202,6 @@ def create_bokeh_figure(
                 color=("navy", "red"),
             )
 
-
     return p
 
 
@@ -202,8 +211,8 @@ def create_chart(
     chart_type: str = "line",
     idx_column: str = None,
     group_method: str = "mean",
-    x_desired_num_ticks: int=4,
-    y_desired_num_ticks: int=4,
+    x_desired_num_ticks: int = 4,
+    y_desired_num_ticks: int = 4,
     x_axis_formatter: TickFormatter = None,
     y_axis_formatter: TickFormatter = None,
     **kwargs,
@@ -220,7 +229,9 @@ def create_chart(
         figure: A Bokeh figure object with the line chart.
 
     """
-    data_sources = create_data_sources(df, columns, chart_type, idx_column=idx_column, group_method=group_method)
+    data_sources = create_data_sources(
+        df, columns, chart_type, idx_column=idx_column, group_method=group_method
+    )
     return with_axis_format(
         p=create_bokeh_figure(data_sources, chart_type, **kwargs),
         x_axis_formatter=x_axis_formatter,
@@ -269,7 +280,6 @@ def with_axis_format(
     Returns:
         Figure: A Bokeh figure with the axis format set.
 
-
     """
     data = p.renderers[0].data_source.data
 
@@ -290,6 +300,7 @@ def with_axis_format(
 
     return p
 
+
 DefaultTickFormatter = NumeralTickFormatter(format="0.0a")
 PercentTickFormatter = NumeralTickFormatter(format="0.0%")
 DecimalTickFormatter = NumeralTickFormatter(format="0.00")
@@ -303,15 +314,16 @@ DateTickFormatter = DatetimeTickFormatter(
     seconds=["%m/%d/%y %H:%M:%S"],
 )
 
+
 def infer_formatter_type_from_data(data):
-    """
-    Infers the appropriate formatter type based on the provided data.
+    """Infers the appropriate formatter type based on the provided data.
 
     Args:
         data (list or array-like): Data for which the formatter needs to be inferred.
 
     Returns:
         str: Type of the inferred formatter.
+
     """
 
     # Check for datetime data
@@ -350,7 +362,9 @@ create_fees_pnl_pct_figure = register("create_fees_pnl_pct_figure", ["fees_pnl_p
 create_il_figure = register("create_il_figure", ["impermanent_loss"])
 
 create_arb_profit_figure = register("create_arb_profit_figure", ["arb_profit"])
-create_retail_volume_quote_figure = register("create_retail_volume_quote_figure", ["retail_volume_quote"])
+create_retail_volume_quote_figure = register(
+    "create_retail_volume_quote_figure", ["retail_volume_quote"]
+)
 create_arb_volume_quote_figure = register(
     new_function_name="create_arb_volume_quote_figure",
     columns=["arb_volume_quote", "retail_volume_quote"],
@@ -400,10 +414,16 @@ create_exec_price_figure = register(
     line_dash=["solid", "dotted"],
 )
 
-create_div_exec_price_figure = register("create_div_exec_price_figure", ["div_exec_price"])
+create_div_exec_price_figure = register(
+    "create_div_exec_price_figure", ["div_exec_price"]
+)
 create_div_tax_quote_figure = register("create_div_tax_quote_figure", ["div_tax_quote"])
-create_reserve_account_figure = register("create_reserve_account_figure", ["reserve_account"])
-create_buy_back_volume_quote_figure = register("create_buy_back_volume_quote_figure", ["buy_back_volume_quote"])
+create_reserve_account_figure = register(
+    "create_reserve_account_figure", ["reserve_account"]
+)
+create_buy_back_volume_quote_figure = register(
+    "create_buy_back_volume_quote_figure", ["buy_back_volume_quote"]
+)
 
 create_reserve_breakdown_figure = register(
     new_function_name="create_reserve_breakdown_figure",

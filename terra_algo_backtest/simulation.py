@@ -1,6 +1,5 @@
 import gc
 
-import numpy as np
 import pandas as pd
 
 from .strategy import Strategy
@@ -84,5 +83,4 @@ def resample_df(strategy, df_sim: pd.DataFrame) -> pd.DataFrame:
 
     """
     df = df_sim.loc[:, df_sim.columns != "side"]
-    return df.resample('D').agg(strategy.agg(df_sim))
-
+    return df.resample("D").agg(strategy.agg(df_sim))

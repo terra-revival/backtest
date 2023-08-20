@@ -5,9 +5,9 @@ from terra_algo_backtest.exec_engine import ConstantProductEngine
 from terra_algo_backtest.market import MarketPair, Pool
 from terra_algo_backtest.strategy import (
     ArbStrategy,
+    DivProtocolParams,
     DivProtocolStrategy,
     SimpleUniV2Strategy,
-    DivProtocolParams,
 )
 
 from .test_exec_engine import assert_exec_info
@@ -131,7 +131,6 @@ class TestDivProtocolStrategy:
 
         self.reserve_account = 0.0
 
-
     def test_execute(self):
         # Scenario 1: Price is below Peg of $1USD (X>Y)
         trade_exec_info = self.strategy.execute(self.ctx, None)
@@ -141,7 +140,7 @@ class TestDivProtocolStrategy:
             volume_base = exec_info["volume_base"]
             volume_quote = exec_info["volume_quote"]
 
-            expected_div_tax_pct = abs(1 - (mid_price/peg_price))
+            expected_div_tax_pct = abs(1 - (mid_price / peg_price))
             expected_div_tax_quote = volume_quote * expected_div_tax_pct
             expected_div_volume_quote = volume_quote * (1 - expected_div_tax_pct)
             expected_div_exec_price = expected_div_volume_quote / volume_base
@@ -152,7 +151,9 @@ class TestDivProtocolStrategy:
 
                 assert exec_info["div_tax_pct"] == approx(expected_div_tax_pct)
                 assert exec_info["div_tax_quote"] == approx(expected_div_tax_quote)
-                assert exec_info["div_volume_quote"] == approx(expected_div_volume_quote)
+                assert exec_info["div_volume_quote"] == approx(
+                    expected_div_volume_quote
+                )
                 assert exec_info["div_exec_price"] == approx(expected_div_exec_price)
                 assert exec_info["div_tax_quote"] == approx(expected_div_tax_quote)
             else:
@@ -208,7 +209,7 @@ class TestDivTax:
             volume_base = exec_info["volume_base"]
             volume_quote = exec_info["volume_quote"]
 
-            expected_div_tax_pct = abs(1 - (mid_price/peg_price))
+            expected_div_tax_pct = abs(1 - (mid_price / peg_price))
             expected_div_tax_quote = volume_quote * expected_div_tax_pct
             expected_div_volume_quote = volume_quote * (1 - expected_div_tax_pct)
             expected_div_exec_price = expected_div_volume_quote / volume_base
@@ -218,6 +219,7 @@ class TestDivTax:
             assert div_exec_info is not None
             assert div_exec_info["div_tax_pct"] == approx(expected_div_tax_pct)
             assert div_exec_info["div_tax_quote"] == approx(expected_div_tax_quote)
-            assert div_exec_info["div_volume_quote"] == approx(expected_div_volume_quote)
+            assert div_exec_info["div_volume_quote"] == approx(
+                expected_div_volume_quote
+            )
             assert div_exec_info["div_exec_price"] == approx(expected_div_exec_price)
-
