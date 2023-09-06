@@ -54,7 +54,7 @@ class ConstantProductEngine(ExecEngine):
         except KeyError as e:
             raise KeyError("Missing key in context dictionary: " + str(e))
 
-    def get_exec_price(self, direction: str, size: float) -> Tuple[float, float]:
+    def get_exec_price(self, size: float) -> Tuple[float, float]:
         """Gets the execution price for a trade order.
 
         Args:

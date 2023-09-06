@@ -1,0 +1,5 @@
+# In _config.yml
+title: Backtesting report v1
+author: USTC Quant Team
+execute:
+  execute_notebooks: force

@@ -111,10 +111,14 @@ class DivProtocolParams:
         peg_price: float,
         pct_buy_back: float = 1.0,
         exec_buy_back: bool = True,
+        borrow_haircut: float = 0.3,
+        margin: float = 0.7,
     ):
         self.peg_price = peg_price
         self.pct_buy_back = pct_buy_back
         self.exec_buy_back = exec_buy_back
+        self.borrow_haircut = borrow_haircut
+        self.margin = margin
 
 
 # Rewrite the DivProtocolStrategy class with the updated calc_div_tax function
@@ -150,13 +154,9 @@ class DivProtocolStrategy:
 
         if self.params.exec_buy_back:
             if self.reserve > 0 and self.cp_amm.mkt.mid_price < self.params.peg_price:
-                buy_back_trade, cash_quote, borrowed_base = self.calc_buy_back_trade(
-                    mkt_price
-                )
+                buy_back_trade, borrowed_quote = self.calc_buy_back_trade(mkt_price)
                 if buy_back_trade:
-                    exec_info = self.perform_buy_back(
-                        current_row, buy_back_trade, cash_quote, borrowed_base
-                    )
+                    exec_info = self.perform_buy_back(current_row, buy_back_trade, borrowed_quote)
                     trade_exec_info.append(exec_info)
 
         return trade_exec_info
@@ -184,6 +184,8 @@ class DivProtocolStrategy:
             strat_agg.update(
                 {
                     "buy_back_volume_quote": "sum",
+                    "borrowed_quote": "sum",
+                    "net_borrowed_quote": "sum",
                 }
             )
 
@@ -200,16 +202,19 @@ class DivProtocolStrategy:
             "div_exec_price": div_volume_quote / volume_base,
         }
 
-    def perform_buy_back(self, current_row, buy_back_trade, cash_quote, borrowed_base):
+    def perform_buy_back(self, current_row, buy_back_trade, borrowed_quote):
         mkt_price = current_row["price"]
         no_div_mid_price = self.cp_amm.mkt.mid_price
-
         exec_info = self.cp_amm.execute_trade(current_row, buy_back_trade)
-        net_volume_base = exec_info["volume_base"] - borrowed_base
+
+        cash_quote = buy_back_trade.order_size - borrowed_quote
+        net_volume_quote = (mkt_price*exec_info["volume_base"])
+        if borrowed_quote > 0:
+            net_volume_quote -= borrowed_quote
 
         self.update_reserve(
             volume_quote=-cash_quote,
-            volume_base=net_volume_base,
+            volume_base=net_volume_quote/mkt_price,
             mkt_price=mkt_price,
         )
 
@@ -217,34 +222,47 @@ class DivProtocolStrategy:
             {
                 "no_div_mid_price": no_div_mid_price,
                 "buy_back_volume_quote": exec_info["volume_quote"],
+                "borrowed_quote": borrowed_quote,
+                "net_borrowed_quote": net_volume_quote,
                 **self.reserve_account,
             }
         )
 
         return exec_info
 
-    def calc_buy_back_trade(self, mkt_price, borrow_haircut=0.3, margin=0.3):
+    def calc_buy_back_trade(self, mkt_price):
         dx, _ = self.cp_amm.mkt.get_delta_reserves(self.params.peg_price)
-        if self.reserve_quote > 0 and dx <= self.reserve_quote:
-            return TradeOrder(dx, self.cp_amm.mkt.swap_fee), dx, 0.0
+        if dx <= 0 or self.reserve == 0:
+            return None, 0
 
-        if self.reserve_base > 0.0:
-            return self.calc_borrowed_trade(mkt_price, dx, borrow_haircut, margin)
+        borrowed_quote = 0
+        order_size = min(dx, self.reserve_quote)
+        amount_to_borrow = dx - order_size
+        if amount_to_borrow > 0 and self.reserve_base > 0.0:
+            borrowed_quote = self.calc_borrow_quote(mkt_price, order_size, amount_to_borrow)
+            if borrowed_quote > 0:
+                order_size += borrowed_quote
 
-        return None, 0, 0
+        trade = TradeOrder(order_size, self.cp_amm.mkt.swap_fee) if order_size > 0 else None
+        return trade, borrowed_quote
 
-    def calc_borrowed_trade(self, mkt_price, dx, borrow_haircut, margin):
-        cash_quote = self.reserve_quote
-        collat_quote = self.reserve_base * mkt_price
-        collat_quote *= (1 - borrow_haircut) * (1 - margin)
-        borrowed_quote = min(collat_quote, dx - cash_quote)
-        borrowed_base = borrowed_quote / mkt_price
+
+    def calc_borrow_quote(self, mkt_price, cash_quote, amount_to_borrow):
+        margin = self.params.margin
+        borrow_haircut = self.params.borrow_haircut
+        haircut_collat_quote = amount_to_borrow / ((1/margin)-1)
+        collat_quote = haircut_collat_quote / (1-borrow_haircut)
+        collat_quote = min(collat_quote, self.reserve_base*mkt_price)
+        borrowed_quote = collat_quote*(1-borrow_haircut)*((1/margin)-1)
+        pnl = self.calc_borrow_trade_pnl(mkt_price, cash_quote, borrowed_quote)
+        return borrowed_quote if pnl > 0 else 0
+
+    def calc_borrow_trade_pnl(self, mkt_price, cash_quote, borrowed_quote):
         volume_quote = cash_quote + borrowed_quote
-        return (
-            TradeOrder(volume_quote, self.cp_amm.mkt.swap_fee),
-            cash_quote,
-            borrowed_base,
-        )
+        exec_price, _ = self.cp_amm.get_exec_price(volume_quote)
+        volume_base = volume_quote/exec_price
+        return (volume_base*mkt_price) - borrowed_quote
+
 
     def update_reserve(self, volume_base, volume_quote, mkt_price):
         self.reserve_base += volume_base
